@@ -1,4 +1,5 @@
 import type { BenchProgress, BenchResult } from './bench.ts'
+import type { NetScanProgress, NetScanResult } from './net.ts'
 import type { Snapshot, Telemetry } from './schema.ts'
 
 export interface AppInfo {
@@ -45,5 +46,8 @@ export interface InspektApi {
   onBenchProgress: (callback: (progress: BenchProgress) => void) => () => void
   onBenchHistoryChanged: (callback: (history: BenchResult[]) => void) => () => void
   openExternal: (url: string) => Promise<boolean>
+  netScan: () => Promise<NetScanResult>
+  netScanCancel: () => Promise<boolean>
+  onNetScanProgress: (callback: (progress: NetScanProgress) => void) => () => void
   platform: string
 }

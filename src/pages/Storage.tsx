@@ -2,7 +2,7 @@ import { HardDrive, ShieldAlert } from 'lucide-react'
 import { MiniBars } from '../components/charts/Mini.tsx'
 import { Badge, DataTable, EmptyState, KV, Meter, Notice, Panel, StatTile } from '../components/ui.tsx'
 import { SlotMap } from '../components/SlotMap.tsx'
-import { bytes, percent } from '../lib/format.ts'
+import { bytes, num, percent } from '../lib/format.ts'
 import { healthLabel, healthTone } from '../lib/labels.ts'
 import { freeStorageSlots } from '../lib/ports.ts'
 import type { Disk, Partition } from '../../shared/schema.ts'
@@ -45,6 +45,9 @@ function DiskCard({ disk, elevated, onElevate }: { disk: Disk; elevated: boolean
             <Badge>{disk.mediaType ?? '—'}</Badge>
             <Badge>{disk.partitionStyle ?? '—'}</Badge>
             <Badge tone={toneFor(disk.health)}>{healthLabel(disk.health) ?? '—'}</Badge>
+            {disk.logicalSectorSize === 4096 && <Badge tone="accent">4Kn</Badge>}
+            {disk.busType === 'NVMe' && <Badge>NVMe</Badge>}
+            {disk.pcie && <Badge tone="accent">{disk.pcie.text}{disk.pcie.linkSpeed ? ` · ${disk.pcie.linkSpeed}` : ''}</Badge>}
             {disk.isBoot && <Badge tone="good">Startvolume</Badge>}
             {disk.isReadOnly && <Badge tone="warn">schreibgeschützt</Badge>}
             {disk.isOffline && <Badge tone="bad">offline</Badge>}
@@ -84,21 +87,39 @@ function DiskCard({ disk, elevated, onElevate }: { disk: Disk; elevated: boolean
           columns={1}
           items={[
             { label: 'Status', value: disk.status ?? '—' },
-            { label: 'Firmware', value: disk.firmware ?? '—' },
+            { label: 'Firmware', value: disk.firmware ?? '—', hint: disk.firmwareRevision ? `Gerät meldet ${disk.firmwareRevision}` : undefined },
+            { label: 'Logische Blockgröße', value: disk.logicalSectorSize ? `${num(disk.logicalSectorSize)} B` : '—', hint: disk.logicalSectorSize === 4096 ? '4Kn-Sektoren, volle 4 KiB pro Block' : disk.logicalSectorSize === 512 ? '512-Byte-Sektoren' : undefined },
+            { label: 'Physische Blockgröße', value: disk.physicalSectorSize ? bytes(disk.physicalSectorSize, 0) : '—', hint: 'Größe eines tatsächlichen NAND-Flashes' },
             { label: 'Hersteller-Nr.', value: disk.serial ?? '—' },
             { label: 'Eindeutige ID', value: disk.uniqueId ?? '—' },
-            { label: 'SMART-Details', value: disk.reliability ? `${disk.reliability.temperature ?? '—'} °C` : elevated === false ? 'Rechte fehlen' : 'nicht verfügbar' },
+            {
+              label: 'SMART-Details',
+              value: disk.reliability
+                ? `${disk.reliability.temperature ?? '—'} °C`
+                : elevated === false
+                  ? 'Rechte fehlen'
+                  : 'nicht verfügbar',
+              hint:
+                disk.reliability?.predictedFailure === true
+                  ? `Hersteller warnt: ${disk.reliability.reason ?? 'Ausfall vorhergesagt'}`
+                  : disk.reliability?.predictedFailure === false
+                    ? 'keine Ausfallwarnung'
+                    : undefined,
+            },
           ]}
         />
       </div>
 
       {disk.reliability && (
-        <div className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile label="Temperatur" value={disk.reliability.temperature !== null && disk.reliability.temperature !== undefined ? `${disk.reliability.temperature} °C` : '—'} />
-          <StatTile label="Einschaltdauer" value={disk.reliability.powerOnHours !== null && disk.reliability.powerOnHours !== undefined ? `${disk.reliability.powerOnHours} h` : '—'} />
-          <StatTile label="Lesefehler" value={disk.reliability.readErrors ?? '—'} />
-          {disk.reliability.wear !== null && disk.reliability.wear !== undefined && (
-            <StatTile label="Verschleiß" value={percent(disk.reliability.wear)} />
+        <div className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-5">
+          <StatTile label="Temperatur" value={disk.reliability.temperature !== null && disk.reliability.temperature !== undefined ? `${disk.reliability.temperature} °C` : '—'} hint={disk.reliability.temperatureMax ? `max ${disk.reliability.temperatureMax} °C` : undefined} />
+          <StatTile label="Einschaltdauer" value={disk.reliability.powerOnHours !== null && disk.reliability.powerOnHours !== undefined ? `${num(disk.reliability.powerOnHours)} h` : '—'} />
+          <StatTile label="Start/Stop" value={disk.reliability.startStopCycles !== null && disk.reliability.startStopCycles !== undefined ? num(disk.reliability.startStopCycles) : '—'} hint="Zyklen" />
+          <StatTile label="Schreibzugriffe" value={disk.reliability.dataUnitsWritten !== null && disk.reliability.dataUnitsWritten !== undefined ? `${num(disk.reliability.dataUnitsWritten / 1e6, 1)} Mio.` : '—'} hint="1000er-Blöcke, wenn gemeldet" />
+          {disk.reliability.wear !== null && disk.reliability.wear !== undefined ? (
+            <StatTile label="Verschleiß" value={percent(disk.reliability.wear)} tone={disk.reliability.wear > 20 ? 'warn' : 'good'} hint="verbrauchte Schreibzellen" />
+          ) : (
+            <StatTile label="Lesefehler" value={disk.reliability.readErrors ?? '—'} />
           )}
         </div>
       )}

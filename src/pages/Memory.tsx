@@ -18,6 +18,29 @@ function profile(module: MemoryModule): { label: string; tone: 'good' | 'warn' |
   return { label: 'JEDEC-Standard', tone: 'good' }
 }
 
+/** Datenbreite vs. Gesamtbreite verrät die Kanalbestückung. */
+function channelOf(module: MemoryModule): string {
+  const data = module.dataWidth ?? 0
+  const total = module.totalWidth ?? 0
+  if (!data || !total) return 'unbekannt'
+  if (total >= data * 2) return 'Dual-Channel (oder mehr)'
+  if (total === data) return 'Single-Channel'
+  return `ungleich (${data}/${total} Bit)`
+}
+
+/** Ein Takt über JEDEC bei erhöhter Spannung ist praktisch immer ein Profil. */
+function profileHint(module: MemoryModule): string | null {
+  const type = memoryTypeShort(module.smbiosType) ?? ''
+  const speed = module.speed ?? 0
+  const jedec = JEDEC_MAX[type]
+  if (!jedec || speed <= jedec) return null
+  const mv = module.voltageMv ?? 0
+  const overVoltage = mv > (type.startsWith('DDR5') ? 1100 : type === 'DDR4' ? 1200 : 0)
+  return overVoltage
+    ? `Takt liegt über JEDEC (${jedec} MT/s) bei ${(mv / 1000).toFixed(2)} V – das ist ein übertaktetes Profil wie XMP oder EXPO`
+    : `Takt liegt über JEDEC (${jedec} MT/s), Spannung ist aber Standard – Profil unklar`
+}
+
 export function MemoryPage({ snapshot, report }: PageProps): React.ReactNode {
   const mem = snapshot?.sections.memory.data ?? null
   const modules = mem?.modules ?? []
@@ -68,6 +91,8 @@ export function MemoryPage({ snapshot, report }: PageProps): React.ReactNode {
               { label: 'Ort des Arrays', value: mem?.arrayLocation === 3 ? 'Hauptplatine' : num(mem?.arrayLocation) },
               { label: 'Datenbreite', value: first?.dataWidth ? `${first.dataWidth} bit` : '—' },
               { label: 'Gesamtbreite', value: first?.totalWidth ? `${first.totalWidth} bit` : '—' },
+              { label: 'Kanäle', value: first ? channelOf(first) : '—', hint: 'aus Gesamt- gegen Datenbreite' },
+              { label: 'Modulprofil', value: first ? profileHint(first) ?? 'Standardprofil' : '—' },
             ]}
           />
           <div className="space-y-3">
@@ -92,10 +117,15 @@ export function MemoryPage({ snapshot, report }: PageProps): React.ReactNode {
                 <div className="mt-1 flex flex-wrap gap-2 font-mono text-[11px] text-faint">
                   <span>{m.bank ?? '—'}</span>
                   <span>·</span>
+                  <span>{channelOf(m)}</span>
+                  <span>·</span>
                   <span>Seriennummer {m.serialNumber ?? '—'}</span>
                   <span>·</span>
                   <span>Interleave {num(m.interleave)}</span>
                 </div>
+                {profileHint(m) && (
+                  <div className="mt-1.5 text-[11.5px] leading-relaxed text-amber-500">{profileHint(m)}</div>
+                )}
               </div>
             </div>
           ))}

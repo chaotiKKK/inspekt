@@ -7,6 +7,7 @@ import collectScriptRaw from './collector/collect.ps1?raw'
 import telemetryScriptRaw from './collector/telemetry.ps1?raw'
 import { collect, collectSectionSnapshot, isElevated, startTelemetry, type TelemetryStream } from '../node/collect.ts'
 import { startBench, type BenchHandle } from '../node/bench.ts'
+import { scanLan, type LanDevice } from '../node/net-scan.ts'
 import type { BenchResult } from '../shared/bench.ts'
 
 // ---------------------------------------------------------------------------
@@ -146,6 +147,7 @@ function relaunchElevated(): { requested: boolean; error?: string } {
 
 let telemetry: TelemetryStream | null = null
 let bench: BenchHandle | null = null
+let netScan: { handle: Promise<unknown>; signal: { aborted: boolean } } | null = null
 
 // ---------------------------------------------------------------------------
 // Benchmark-Historie (liegt neben den Collector-Skripten im Benutzerprofil)
@@ -233,6 +235,32 @@ function registerIpc(): void {
   ipcMain.handle('hw:telemetryStop', () => {
     telemetry?.stop()
     telemetry = null
+    return true
+  })
+
+  ipcMain.handle('net:scan', async (event) => {
+    if (netScan) throw new Error('Ein Suchlauf läuft bereits.')
+    const signal = { aborted: false }
+    const found: LanDevice[] = []
+    const handle = scanLan({
+      signal,
+      onProgress: (done, total) => {
+        if (!event.sender.isDestroyed()) event.sender.send('net:scanProgress', { done, total, found: found.length })
+      },
+    })
+    netScan = { handle, signal }
+    try {
+      const result = await handle
+      return result
+    } finally {
+      netScan = null
+    }
+  })
+
+  ipcMain.handle('net:scanCancel', () => {
+    if (!netScan) return false
+    netScan.signal.aborted = true
+    netScan = null
     return true
   })
 

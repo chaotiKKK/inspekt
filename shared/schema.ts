@@ -180,6 +180,23 @@ export const ReliabilitySchema = z.object({
   writeErrors: n,
   readUncorrected: n,
   writeUncorrected: n,
+  /** SMART-Vorhersage des Herstellers, null wenn nicht auslesbar */
+  predictedFailure: b,
+  reason: s,
+  /** Anzahl der Schreibvorgaenge, sofern der Treiber sie meldet */
+  dataUnitsWritten: n,
+})
+
+export const PcieLinkSchema = z.object({
+  generation: s,
+  width: n,
+  maxWidth: n,
+  maxSpeedMHz: n,
+  currentSpeedMHz: n,
+  currentWidth: n,
+  /** Linkgeschwindigkeit als Text, z. B. "32 GT/s" */
+  linkSpeed: s,
+  text: s,
 })
 
 export const DiskSchema = z.object({
@@ -194,6 +211,13 @@ export const DiskSchema = z.object({
   status: s,
   usage: s,
   firmware: s,
+  /** logische Blockgroesse in Bytes (512 oder 4096 bei 4Kn) */
+  logicalSectorSize: n,
+  /** physische Blockgroesse in Bytes */
+  physicalSectorSize: n,
+  /** Firmwarestand aus NVMe-/SATA-Firmwareinformationen */
+  firmwareRevision: s,
+  pcie: PcieLinkSchema.nullish(),
   isBoot: b,
   isSystem: b,
   isOffline: b,
@@ -283,6 +307,7 @@ export const NvidiaGpuSchema = z.object({
 export const GpuAdapterSchema = z.object({
   name: s,
   processor: s,
+  pcie: PcieLinkSchema.nullish(),
   adapterRam: n,
   vramSource: s,
   driver: s,
@@ -308,6 +333,16 @@ export const GpuDataSchema = z.object({
 // ---------------------------------------------------------------------------
 // monitors
 // ---------------------------------------------------------------------------
+export const DisplayModeSchema = z.object({
+  device: s,
+  width: n,
+  height: n,
+  bitsPerPixel: n,
+  refreshHz: n,
+  pixelDensity: n,
+  modes: n,
+})
+
 export const MonitorSchema = z.object({
   instance: s,
   manufacturer: s,
@@ -324,10 +359,15 @@ export const MonitorSchema = z.object({
   videoInput: n,
   outputTech: n,
   transferChar: n,
+  displayMode: DisplayModeSchema.nullish(),
+  /** 128+ = HDR (0x82 statische Metadaten im EDID-Transfermerkmal) */
+  hdr: b,
 })
 
 export const MonitorDataSchema = z.object({
   monitors: arr(MonitorSchema),
+  /** aktive Anzeigemodi aus user32, sofern EnumDisplaySettings erreichbar war */
+  displayModes: arr(DisplayModeSchema.partial({ modes: true })),
 })
 
 // ---------------------------------------------------------------------------

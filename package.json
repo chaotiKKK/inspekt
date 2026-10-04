@@ -17,6 +17,7 @@
     "collect:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect-smoke.ts",
     "export:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/export-smoke.ts",
     "bench:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/bench-smoke.ts",
+    "net:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/net-smoke.ts",
     "ui:smoke": "npm run build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/ui-smoke.ts",
     "icon": "node tools/make-icon.mjs",
     "build:win": "npm run build && electron-builder --win portable"

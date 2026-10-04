@@ -297,6 +297,66 @@ const benchValue = String((bench.result as { value?: string } | undefined)?.valu
 console.log('\n=== Benchmark ===')
 console.log(benchValue)
 
+// ---- neue Bereiche: LAN-Suche und Anzeigemodi -------------------------------
+const features = await call<{ result?: { value?: string } }>('Runtime.evaluate', {
+  awaitPromise: true,
+  returnByValue: true,
+  expression: `(async () => {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const go = async (needle) => {
+      const btn = [...document.querySelectorAll('aside nav button')].find(b => b.textContent.includes(needle));
+      btn?.click();
+      await sleep(700);
+      return document.body.innerText.toLowerCase();
+    };
+    const net = await go('Netzwerk');
+    const mon = await go('Monitore');
+    const monPanels = [...document.querySelectorAll('.panel header')].map(p => p.textContent).join('|');
+    const monHead = mon.slice(0, 120);
+    const sto = await go('Speicher');
+    const mem = await go('Arbeitsspeicher');
+    let monData = null;
+    let stoData = null;
+    try { monData = (await window.inspekt.sections(['monitors']))?.monitors?.data ?? null; } catch (e) { monData = null; }
+    try { stoData = (await window.inspekt.sections(['storage']))?.storage?.data ?? null; } catch (e) { stoData = null; }
+    return JSON.stringify({
+      lanButton: net.includes('netz durchsuchen'),
+      lanApi: typeof window.inspekt.netScan === 'function',
+      modesText: mon.includes('höchster modus'),
+      probe: {
+        hoechster: mon.includes('höchster'),
+        modus: mon.includes('modus'),
+        hz: mon.includes(' hz'),
+        ppi: mon.includes('ppi'),
+        bit: mon.includes('bit'),
+        leer: mon.includes('keine anzeigemodi')
+      },
+      full: await (async () => {
+        try {
+          const snap = await window.inspekt.collect();
+          const m = snap?.sections?.monitors;
+          return { ok: m?.ok, err: m?.error ?? null, ms: m?.ms ?? null, modes: (m?.data?.displayModes ?? []).length, monitors: (m?.data?.monitors ?? []).length };
+        } catch (e) {
+          return { err: String(e) };
+        }
+      })(),
+      modePanels: monPanels,
+      monHead,
+      modesData: (monData?.displayModes ?? []).length,
+      pcieText: sto.includes('gen4') || sto.includes('gen3') || sto.includes('gen5'),
+      pcieDisk: (stoData?.disks ?? []).filter(d => d.pcie).length,
+      sector: sto.includes('blockgröße') || sto.includes('blockgrö'),
+      channels: mem.includes('kanäle') || mem.includes('kanale')
+    });
+  })()`,
+  },
+  60000,
+)
+
+const featuresValue = String((features.result as { value?: string } | undefined)?.value ?? '{}')
+console.log('\n=== Neue Bereiche ===')
+console.log(featuresValue)
+
 // ---- Screenshots der fertigen Rechenkraft-Seite ------------------------------
 async function shot(relative: string): Promise<void> {
   try {
@@ -398,6 +458,26 @@ try {
   benchReport = {}
 }
 
+interface FeatureReport {
+  lanButton?: boolean
+  lanApi?: boolean
+  modesText?: boolean
+  modesData?: number
+  modePanels?: string
+  probe?: Record<string, boolean>
+  full?: Record<string, unknown>
+  pcieText?: boolean
+  pcieDisk?: number
+  sector?: boolean
+  channels?: boolean
+}
+let feat: FeatureReport = {}
+try {
+  feat = JSON.parse(featuresValue) as FeatureReport
+} catch {
+  feat = {}
+}
+
 const checks: [string, boolean, string | null][] = [
   ['preload-Bridge', info.inspekt === 'object', String(info.inspekt)],
   ['13 Navigationspunkte', Number(info.navCount) === 13, String(info.navCount)],
@@ -414,6 +494,11 @@ const checks: [string, boolean, string | null][] = [
   ['Latenz-Sweep sichtbar', benchReport.latencyPanel === true && benchReport.latencyNs !== null, `RAM-Latenz ${String(benchReport.latencyNs)} ns`],
   ['Verlauf gespeichert', (benchReport.history ?? 0) >= 1, `${String(benchReport.history)} Läufe in der Historie`],
   ['Quellen verlinkbar', (benchReport.sources ?? 0) >= 40, `${String(benchReport.sources)} Quellen-Buttons`],
+  ['LAN-Suche vorhanden', feat.lanButton === true && feat.lanApi === true, null],
+  ['Anzeigemodi auslesbar', feat.modesText === true && (feat.modesData ?? 0) > 0, `${String(feat.modesData)} Modi in den Daten`],
+  ['PCIe-Link angezeigt', feat.pcieText === true && (feat.pcieDisk ?? 0) > 0, `${String(feat.pcieDisk)} Laufwerke mit PCIe-Angabe`],
+  ['Sektorgroessen angezeigt', feat.sector === true, null],
+  ['Speicherkanaele erkannt', feat.channels === true, null],
   ['Balken gerendert', (benchReport.bars ?? 0) >= 8, `${String(benchReport.bars)} Balken`],
   ['Referenzen enthalten', benchReport.historical === true && benchReport.compare === true && benchReport.time === true, null],
   ['Score-Formel erklärt', benchReport.note === true, null],

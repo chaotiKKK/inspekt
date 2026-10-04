@@ -30,6 +30,9 @@ const api: InspektApi = {
   onBenchProgress: (callback) => subscribe('bench:progress', callback),
   onBenchHistoryChanged: (callback) => subscribe('bench:historyChanged', callback),
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  netScan: () => ipcRenderer.invoke('net:scan'),
+  netScanCancel: () => ipcRenderer.invoke('net:scanCancel'),
+  onNetScanProgress: (callback) => subscribe('net:scanProgress', callback),
   platform: process.platform,
 }
 

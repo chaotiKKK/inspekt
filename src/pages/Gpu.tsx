@@ -119,6 +119,7 @@ export function GpuPage({ snapshot, telemetry, elevated, onElevate }: PageProps)
                 <div className="flex gap-2">
                   <Badge tone={a.status === 'OK' ? 'good' : 'neutral'}>{a.status ?? '—'}</Badge>
                   <Badge>{a.vramSource ?? '—'}</Badge>
+                  {a.pcie && <Badge tone="accent">{a.pcie.text}{a.pcie.linkSpeed ? ` · ${a.pcie.linkSpeed}` : ''}</Badge>}
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-between rounded border border-line px-3 py-2">

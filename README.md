@@ -49,6 +49,24 @@ Weitere Eigenschaften:
 - Diagrammbibliothek selbst geschrieben (SVG), keine Chart-Abhängigkeit
 - `prefers-reduced-motion` wird respektiert
 
+### Details, die über „welche Hardware steckt drin" hinausgehen
+
+- **PCIe-Link** statt Schätzung: Generation und Lane-Breite kommen aus den
+  PNP-Eigenschaften (`DEVPKEY_PciDevice_CurrentLinkSpeed`), beim Datenträger
+  über den Elternknoten des Controllers – also „Gen4 x4" statt „vermutlich
+  modern"
+- **Sektorgroßen und 4Kn**: logische und physische Blockgröße aus
+  `MSFT_PhysicalDisk`, inklusive Firmwarestand aus den NVMe-Firmwaredaten
+- **Speicherkanäle und Profile**: Kanalbestückung aus Gesamt- gegen
+  Datenbreite, Takt über JEDEC plus erhöhte Spannung wird als übertaktetes
+  Profil (XMP/EXPO) erkannt und benannt
+- **Anzeigemodi** über `user32!EnumDisplaySettings`: höchste Auflösung,
+  Bildrate, Farbtiefe und Pixeldichte, HDR aus dem EDID-Transfermerkmal
+- **Geräte im lokalen Netz**: Ping-Sweep über das eigene /24 mit ARP-Tabelle,
+  MAC-Adressen und Herstellerzuordnung aus kuratierten OUI-Präfixen –
+  abgeschaltet, nie automatisch, verläuft vollständig lokal
+- **Diagnoseblock** kopierfertig für Fehlerberichte (Seite „System & Export")
+
 ## Rechenkraft
 
 Die Seite „Rechenkraft" misst den Rechner und stellt das Ergebnis in

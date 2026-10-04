@@ -111,6 +111,44 @@ function U16ToString($arr) {
 # ===========================================================================
 # system
 # ===========================================================================
+function Get-PcieLink([string]$instanceId) {
+    if (-not $instanceId) { return $null }
+    $out = $null
+    try {
+        $props = @(Get-PnpDeviceProperty -InstanceId $instanceId -KeyName 'DEVPKEY_PciDevice_CurrentLinkSpeed', 'DEVPKEY_PciDevice_CurrentLinkWidth', 'DEVPKEY_PciDevice_MaxLinkWidth' -ErrorAction Stop)
+        $map = @{}
+        foreach ($p in $props) { if ($p.KeyName) { $map[[string]$p.KeyName] = $p.Data } }
+
+        $raw = FInt $map['DEVPKEY_PciDevice_CurrentLinkSpeed']
+        if ($raw -le 0) { return $null }
+        $curWidth = FInt $map['DEVPKEY_PciDevice_CurrentLinkWidth']
+        $maxWidth = FInt $map['DEVPKEY_PciDevice_MaxLinkWidth']
+
+        # Aeltere Treiber melden die Generation direkt (1..6), neuere die
+        # Taktfrequenz in MHz. Beides kommt in dasselbe Feld.
+        $isMHz = $raw -ge 100
+        $generation = if ($isMHz) {
+            if ($raw -ge 64000) { 'Gen6' } elseif ($raw -ge 32000) { 'Gen5' } elseif ($raw -ge 16000) { 'Gen4' } elseif ($raw -ge 8000) { 'Gen3' } elseif ($raw -ge 5000) { 'Gen2' } else { 'Gen1' }
+        } else {
+            'Gen' + $raw
+        }
+        $speedText = if ($isMHz) { ([math]::Round($raw / 1000, 1)).ToString([System.Globalization.CultureInfo]::InvariantCulture) + ' GT/s' } else { $null }
+
+        $width = if ($curWidth -gt 0) { $curWidth } elseif ($maxWidth -gt 0) { $maxWidth } else { $null }
+        $out = @{
+            generation     = $generation
+            width          = $width
+            maxWidth       = if ($maxWidth -gt 0) { $maxWidth } else { $null }
+            maxSpeedMHz    = if ($isMHz) { $raw } else { $null }
+            currentSpeedMHz = if ($isMHz) { $raw } else { $null }
+            currentWidth   = if ($curWidth -gt 0) { $curWidth } else { $null }
+            linkSpeed      = $speedText
+            text           = if ($width -gt 0) { $generation + ' x' + $width } else { $generation }
+        }
+    } catch { $out = $null }
+    return $out
+}
+
 function Get-SystemData {
     $cs = Get-CimInstance -ClassName Win32_ComputerSystem
     $csp = Get-CimInstance -ClassName Win32_ComputerSystemProduct
@@ -313,6 +351,9 @@ function Get-StorageData {
     $enclosures = @()
     $controllers = @()
     $reliability = $null
+    $smartByIndex = @{}
+    $fwById = @{}
+    $pcieByNumber = @{}
 
     try { $disks = @(Get-Disk) } catch { }
     try { $physical = @(Get-PhysicalDisk) } catch { }
@@ -327,6 +368,42 @@ function Get-StorageData {
             })
         $reliability = @($reliability | Where-Object { $_ })
     } catch { $reliability = $null }
+
+    # SMART-Vorhersage einmal holen und nach Laufwerksindex zuordnen
+    $smartByIndex = @{}
+    try {
+        foreach ($pred in @(Get-CimInstance -Namespace root/wmi -ClassName MSStorageDriver_FailurePredictStatus -ErrorAction Stop)) {
+            if ($pred.InstanceName -match '(\\d+)"') {
+                $smartByIndex[[int]$matches[1]] = @{
+                    predicted = [bool]$pred.PredictFailure
+                    reason    = FStr $pred.Reason
+                }
+            }
+        }
+    } catch { }
+
+    # Firmwarestand aus den NVMe-Firmwareinformationen
+    foreach ($pd in @($physical | Where-Object { $_ })) {
+        try {
+            $fw = Get-StorageFirmwareInformation -PhysicalDisk $pd -ErrorAction Stop
+            if ($fw -and $fw.FirmwareRevision) { $fwById[[string]$pd.DeviceId] = FStr $fw.FirmwareRevision }
+        } catch { }
+    }
+
+    # PCIe-Link haengt am Controller, nicht am Datentraeger: ueber den
+    # Elternknoten gehen und dort die DEVPKEYs lesen.
+    $pcieByNumber = @{}
+    foreach ($inst in @(Get-CimInstance -ClassName Win32_DiskDrive -ErrorAction SilentlyContinue)) {
+        $target = FStr $inst.PNPDeviceID
+        if ($target) {
+            try {
+                $parent = Get-PnpDeviceProperty -InstanceId $target -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
+                if ($parent -and $parent.Data) { $target = FStr $parent.Data }
+            } catch { }
+        }
+        $link = Get-PcieLink $target
+        if ($link) { $pcieByNumber[[int]$inst.Index] = $link }
+    }
 
     $relById = @{}
     foreach ($r in $reliability) {
@@ -389,6 +466,7 @@ function Get-StorageData {
 
         $relData = $null
         if ($rel) {
+            $smart = if ($smartByIndex.ContainsKey([int]$num)) { $smartByIndex[[int]$num] } else { $null }
             $relData = @{
                 temperature      = FInt $rel.Temperature
                 temperatureMax   = FInt $rel.TemperatureMax
@@ -399,6 +477,9 @@ function Get-StorageData {
                 writeErrors      = FInt64 $rel.WriteErrorsTotal
                 readUncorrected  = FInt64 $rel.ReadErrorsUncorrected
                 writeUncorrected = FInt64 $rel.WriteErrorsUncorrected
+                predictedFailure = if ($smart) { [bool]$smart.predicted } else { $null }
+                reason           = if ($smart) { FStr $smart.reason } else { $null }
+                dataUnitsWritten = FInt64 $rel.DataUnitsWritten
             }
         }
 
@@ -414,6 +495,10 @@ function Get-StorageData {
             status        = FStr $d.OperationalStatus
             usage         = if ($p) { FStr $p.Usage } else { $null }
             firmware      = FStr $d.FirmwareVersion
+            logicalSectorSize  = if ($p) { FInt $p.LogicalSectorSize } else { $null }
+            physicalSectorSize = if ($p) { FInt $p.PhysicalSectorSize } else { $null }
+            firmwareRevision   = if ($p -and $fwById.ContainsKey([string]$p.DeviceId)) { $fwById[[string]$p.DeviceId] } else { $null }
+            pcie               = if ($pcieByNumber.ContainsKey([int]$num)) { $pcieByNumber[[int]$num] } else { $null }
             isBoot        = if ($null -ne $d.IsBoot) { [bool]$d.IsBoot } else { $null }
             isSystem      = if ($null -ne $d.IsSystem) { [bool]$d.IsSystem } else { $null }
             isOffline     = if ($null -ne $d.IsOffline) { [bool]$d.IsOffline } else { $null }
@@ -551,6 +636,7 @@ function Get-GpuData {
             dacType     = if ($memInfo) { $memInfo.dacType } else { FStr $v.AdapterDACType }
             videoMemoryType = if ($memInfo) { $memInfo.memoryType } else { $null }
             installed   = FStr $v.InstalledDisplayDrivers
+            pcie        = Get-PcieLink $pnp
         }
     }
 
@@ -558,8 +644,100 @@ function Get-GpuData {
 }
 
 # ===========================================================================
-# monitors (EDID via root\wmi)
+# monitors (EDID via root/wmi)
 # ===========================================================================
+
+# Add-Type braucht Signaturverzeichnis und ist in eingeschraenkter Sprache
+# gesperrt - dann bleibt die Monitorsektion beim EDID, ohne Absturz.
+function Get-DisplayModes {
+    $modes = @()
+    try {
+        if (-not ('Inspekt.DisplayModes' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+namespace Inspekt
+{
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct DEVMODE
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+
+    public class DisplayModes
+    {
+        [DllImport("user32.dll", CharSet = CharSet.Ansi)]
+        static extern bool EnumDisplaySettings(string device, int modeNum, ref DEVMODE devMode);
+
+        public class Mode
+        {
+            public string Device;
+            public int Width;
+            public int Height;
+            public int BitsPerPel;
+            public int RefreshRate;
+            public int PositionX;
+            public int PositionY;
+        }
+
+        public static List<Mode> Read()
+        {
+            var list = new List<Mode>();
+            for (int i = 0; i < 64; i++)
+            {
+                var dm = new DEVMODE();
+                dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+                if (!EnumDisplaySettings(null, i, ref dm)) break;
+                list.Add(new Mode {
+                    Device = dm.dmDeviceName, Width = dm.dmPelsWidth, Height = dm.dmPelsHeight,
+                    BitsPerPel = dm.dmBitsPerPel, RefreshRate = dm.dmDisplayFrequency,
+                    PositionX = dm.dmPositionX, PositionY = dm.dmPositionY
+                });
+            }
+            return list;
+        }
+    }
+}
+'@ -ErrorAction Stop
+        }
+        foreach ($m in [Inspekt.DisplayModes]::Read()) {
+            $modes += @{ device = [string]$m.Device; width = FInt $m.Width; height = FInt $m.Height; bits = FInt $m.BitsPerPel; refresh = FInt $m.RefreshRate; x = FInt $m.PositionX; y = FInt $m.PositionY }
+        }
+    } catch { $modes = @() }
+    return $modes
+}
+
 function Get-MonitorData {
     $ids = @()
     $basic = @()
@@ -574,6 +752,7 @@ function Get-MonitorData {
     foreach ($c in $conn) { $connByInstance[[string]$c.InstanceName] = $c }
 
     $list = @()
+    $modes = @(Get-DisplayModes)
     foreach ($i in $ids) {
         $inst = [string]$i.InstanceName
         $b = $null
@@ -589,6 +768,35 @@ function Get-MonitorData {
         if ($w -and $h) {
             $cm = [math]::Sqrt([double]($w * $w) + [double]($h * $h))
             $diagonalIn = [math]::Round($cm / 2.54, 1)
+        }
+
+        # Aktiver Anzeigemodus: hoechste Aufloesung je Geraet, bei gleicher
+        # Aufloesung die groesste Bildwiederholrate.
+        $active = $null
+        if ($modes.Count -gt 0) {
+            $best = $null
+            foreach ($m in $modes) {
+                if ($m.width -le 0 -or $m.height -le 0) { continue }
+                if ($null -eq $best) { $best = $m; continue }
+                if ($m.width -gt $best.width) { $best = $m }
+                elseif ($m.width -eq $best.width -and $m.height -gt $best.height) { $best = $m }
+                elseif ($m.width -eq $best.width -and $m.height -eq $best.height -and $m.refresh -gt $best.refresh) { $best = $m }
+            }
+            if ($best) {
+                $ppi = $null
+                if ($best.width -gt 0 -and $best.height -gt 0 -and $diagonalIn) {
+                    $ppi = [math]::Round([math]::Sqrt([double]($best.width * $best.width) + [double]($best.height * $best.height)) / $diagonalIn, 1)
+                }
+                $active = @{
+                    device   = $best.device
+                    width    = $best.width
+                    height   = $best.height
+                    bitsPerPixel = $best.bits
+                    refreshHz = $best.refresh
+                    pixelDensity = $ppi
+                    modes = $modes.Count
+                }
+            }
         }
 
         $list += @{
@@ -607,10 +815,12 @@ function Get-MonitorData {
             videoInput   = if ($b) { FInt $b.VideoInputType } else { $null }
             outputTech   = if ($c) { FInt64 $c.VideoOutputTechnology } else { $null }
             transferChar = if ($b) { FInt $b.DisplayTransferCharacteristic } else { $null }
+            hdr          = if ($b) { [bool]([int]$b.DisplayTransferCharacteristic -ge 128) } else { $null }
+            displayMode  = $active
         }
     }
 
-    return @{ monitors = $list }
+    return @{ monitors = $list; displayModes = $modes }
 }
 
 # ===========================================================================
