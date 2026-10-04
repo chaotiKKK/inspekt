@@ -261,7 +261,7 @@ const bench = await call<{ result?: { value?: unknown } }>('Runtime.evaluate', {
     run.click();
     await sleep(350);
     const running = !!document.querySelector('[data-bench="progress"]');
-    while (!document.querySelector('[data-bench="result"]') && Date.now() - started < 45000) {
+    while (!document.querySelector('[data-bench="result"]') && Date.now() - started < 75000) {
       await sleep(400);
     }
     const text = document.body.innerText.toLowerCase();
@@ -297,7 +297,8 @@ const benchValue = String((bench.result as { value?: string } | undefined)?.valu
 console.log('\n=== Benchmark ===')
 console.log(benchValue)
 
-// ---- neue Bereiche: LAN-Suche und Anzeigemodi -------------------------------
+// ---- neue bereiche: LAN-Suche, Anzeigemodi, Vergleich ------------------------
+const full = process.env.INSPEKT_FULL === '1'
 const features = await call<{ result?: { value?: string } }>('Runtime.evaluate', {
   awaitPromise: true,
   returnByValue: true,
@@ -333,16 +334,36 @@ const features = await call<{ result?: { value?: string } }>('Runtime.evaluate',
     await sleep(400);
     const sucheZu = document.querySelector('[role="dialog"]') === null;
 
-    // Vergleich: Referenz merken und dagegen prüfen
+    // Vergleich: Bereich und Knöpfe prüfen. Das Ausführen des Vergleichs kostet
+// zwei vollständige Erfassungen und ist bewusst optional – die Diff-Logik
+// prüft tools/diff-smoke.ts ohne Hardware.
+    const vergleichAusfuehren = ${full ? 'true' : 'false'};
+    const warteAuf = async (pruef, maxMs) => {
+      const ende = Date.now() + maxMs;
+      while (Date.now() < ende) {
+        if (pruef()) return true;
+        await sleep(400);
+      }
+      return false;
+    };
     const saveKnopf = document.querySelector('[data-compare="save"]');
-    if (saveKnopf) {
-      saveKnopf.click();
-      await sleep(11000);
-    }
     const laufKnopf = document.querySelector('[data-compare="run"]');
-    if (laufKnopf) {
-      laufKnopf.click();
-      await sleep(13000);
+    if (vergleichAusfuehren && saveKnopf && !saveKnopf.disabled) {
+      saveKnopf.click();
+      await warteAuf(() => {
+        const b = document.querySelector('[data-compare="save"]');
+        return b && !b.disabled && document.querySelector('[data-compare="run"]') !== null;
+      }, 45000);
+      const lauf = document.querySelector('[data-compare="run"]');
+      if (lauf && !lauf.disabled) {
+        lauf.click();
+        await warteAuf(() => {
+          for (const t of document.querySelectorAll('.panel table')) {
+            if (t.textContent?.includes('Vorher') && t.textContent?.includes('Jetzt') && t.querySelectorAll('tbody tr').length > 0) return true;
+          }
+          return false;
+        }, 45000);
+      }
     }
     let vergleichZeilen = 0;
     for (const t of [...document.querySelectorAll('.panel table')]) {

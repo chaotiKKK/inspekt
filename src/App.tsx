@@ -8,6 +8,7 @@ import { useAppInfo, useSnapshot, useTelemetry } from './lib/hooks.ts'
 import { NAV, navItem, type NavId } from './lib/nav.ts'
 import { buildPortReport } from './lib/ports.ts'
 import { baueIndex, kopieren, useSuche, type SearchHit } from './lib/search.ts'
+import { t } from './lib/i18n'
 import { applyTheme, updateSettings, useSettings } from './lib/settings.ts'
 import { OverviewPage } from './pages/Overview.tsx'
 import { MemoryPage } from './pages/Memory.tsx'
@@ -184,8 +185,8 @@ export default function App(): React.ReactNode {
         <footer className="border-t border-line px-6 py-2.5">
           <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-[10.5px] text-faint">
             <span>
-              Inspekt {appInfo?.version ? `v${appInfo.version}` : ''} · {NAV.length} Bereiche · Daten aus WMI/CIM, EDID und
-              nvidia-smi
+              Inspekt {appInfo?.version ? `v${appInfo.version}` : ''} · {NAV.length} Bereiche ·{' '}
+              {t('app.footer.sources', 'Daten aus WMI/CIM, EDID und nvidia-smi')}
             </span>
             <span className="flex items-center gap-4">
               <button
@@ -194,7 +195,7 @@ export default function App(): React.ReactNode {
                 onClick={() => suche.oeffnen()}
                 title="Strg+F"
               >
-                Suchen (Strg+F)
+                {t('app.footer.search', 'Suchen (Strg+F)')}
               </button>
               {snapshot && <span>Datenstand {new Date(snapshot.collectedAt).toLocaleString('de-DE')}</span>}
               <button
@@ -202,7 +203,7 @@ export default function App(): React.ReactNode {
                 className="underline decoration-line2 underline-offset-2 transition-colors hover:text-accent"
                 onClick={() => updateSettings({ telemetry: !settings.telemetry })}
               >
-                Live-Messung {settings.telemetry ? 'an' : 'aus'}
+                {t('app.footer.live', 'Live-Messung')} {settings.telemetry ? t('common.on', 'an') : t('common.off', 'aus')}
               </button>
             </span>
           </div>

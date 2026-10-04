@@ -1,5 +1,6 @@
 import { Moon, RefreshCw, RotateCw, Sun } from 'lucide-react'
-import type { NavItem } from '../lib/nav.ts'
+import { navLabel, type NavItem } from '../lib/nav.ts'
+import { t } from '../lib/i18n'
 import { clock } from '../lib/format.ts'
 import type { Theme } from '../lib/settings.ts'
 
@@ -46,7 +47,7 @@ export function Topbar({
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-6 py-3.5">
         <div className="flex min-w-0 items-baseline gap-3">
           <span className="font-mono text-[11px] font-semibold tracking-[0.18em] text-accent">{item.code}</span>
-          <h1 className="truncate text-[17px] font-semibold tracking-tight text-fg">{item.label}</h1>
+          <h1 className="truncate text-[17px] font-semibold tracking-tight text-fg">{navLabel(item)}</h1>
         </div>
 
         <div className="hidden items-center gap-2 md:flex" aria-hidden="true">
@@ -60,7 +61,7 @@ export function Topbar({
                   'h-3.5 w-6 rounded-[2px] border transition-colors duration-300',
                   active ? 'border-accent bg-accent/70' : loading ? 'border-line2 bg-panel2' : 'border-line bg-panel2',
                 ].join(' ')}
-                title={active ? `${code} gelesen` : `${code} ausstehend`}
+                title={active ? t('top.read', '{code} gelesen', { code }) : t('top.pending', '{code} ausstehend', { code })}
               />
             )
           })}
@@ -71,15 +72,15 @@ export function Topbar({
 
         <div className="ml-auto flex items-center gap-2">
           {lastUpdate && !loading && (
-            <span className="hidden font-mono text-[11px] text-faint sm:inline">Stand {clock(lastUpdate)}</span>
+            <span className="hidden font-mono text-[11px] text-faint sm:inline">{t('top.stand', 'Stand')} {clock(lastUpdate)}</span>
           )}
           <button type="button" className="btn" onClick={onRefreshSection} disabled={loading || item.sections.length === 0}>
             <RotateCw size={13} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-            Bereich
+            {t('top.section', 'Bereich')}
           </button>
           <button type="button" className="btn btn-primary" onClick={onRefresh} disabled={loading}>
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-            {loading ? 'Läuft …' : 'Aktualisieren'}
+            {loading ? t('top.running', 'Läuft …') : t('top.refresh', 'Aktualisieren')}
           </button>
           <button
             type="button"

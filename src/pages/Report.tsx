@@ -5,12 +5,14 @@ import { Badge, KV, Notice, Panel, StatTile } from '../components/ui.tsx'
 import { bytes, dateTime, duration, num } from '../lib/format.ts'
 import { fileStamp, buildCsv, buildHtml, buildJson, type ReportFormat } from '../lib/export.ts'
 import { kopieren } from '../lib/search.ts'
+import { LOCALES, useLocale } from '../lib/i18n'
 import { useAppInfo } from '../lib/hooks.ts'
 import type { LogEntry } from '../../shared/api.ts'
 import type { PageProps } from './PageProps.ts'
 
 export function ReportPage({ snapshot, report, elevated, settings, patchSettings }: PageProps): React.ReactNode {
   const info = useAppInfo()
+  const { locale, setLocale } = useLocale()
   const [message, setMessage] = useState<{ tone: 'good' | 'bad' | 'neutral'; text: string } | null>(null)
   const [busy, setBusy] = useState<ReportFormat | null>(null)
   const [diag, setDiag] = useState<string | null>(null)
@@ -163,6 +165,28 @@ export function ReportPage({ snapshot, report, elevated, settings, patchSettings
                 >
                   <Sun size={13} aria-hidden="true" /> Hell
                 </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+              <div>
+                <div className="eyebrow">Sprache</div>
+                <div className="mt-1 max-w-[46ch] text-[13px] text-muted">
+                  Wechselt Navigation, technische Begriffe und Statusanzeigen. Ohne Übersetzung bleibt der deutsche Text
+                  stehen – nichts wird leer.
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {LOCALES.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`btn ${locale === entry.id ? 'btn-primary' : ''}`}
+                    onClick={() => setLocale(entry.id)}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
               </div>
             </div>
 

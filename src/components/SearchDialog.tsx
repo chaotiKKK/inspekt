@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { CornerDownLeft, Copy, Search, X } from 'lucide-react'
 import { alsText, type SucheApi } from '../lib/search.ts'
+import { t } from '../lib/i18n'
 
 /** Overlay für die globale Suche (Strg+F), Trefferliste mit Sprungziel. */
 export function SearchDialog({ suche, onKopieren }: { suche: SucheApi; onKopieren: (text: string) => void }): React.ReactNode | null {
@@ -20,7 +21,7 @@ export function SearchDialog({ suche, onKopieren }: { suche: SucheApi; onKopiere
         if (e.target === e.currentTarget) suche.schliessen()
       }}
       role="dialog"
-      aria-label="Globale Suche"
+      aria-label={t('app.search.dialog', 'Globale Suche')}
     >
       <div className="w-full max-w-[720px] overflow-hidden rounded-lg border border-line bg-panel shadow-2xl">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
@@ -44,14 +45,16 @@ export function SearchDialog({ suche, onKopieren }: { suche: SucheApi; onKopiere
                 if (hit) suche.trefferWaehlen(hit)
               }
             }}
-            placeholder="Wert, Modell oder Seriennummer suchen …"
+            placeholder={t('app.search.placeholder', 'Wert, Modell oder Seriennummer suchen …')}
             className="flex-1 bg-transparent font-mono text-[14px] text-fg outline-none placeholder:text-faint"
-            aria-label="Suchbegriff"
+            aria-label={t('app.search.label', 'Suchbegriff')}
           />
           <span className="font-mono text-[11px] text-faint">
-            {suche.query.length >= 2 ? `${treffer.length} von ${ergebnis.geprueft}` : ''}
+            {suche.query.length >= 2
+              ? t('app.search.results', '{count} von {total}', { count: treffer.length, total: ergebnis.geprueft })
+              : ''}
           </span>
-          <button type="button" className="btn" onClick={suche.schliessen} aria-label="Suche schließen">
+          <button type="button" className="btn" onClick={suche.schliessen} aria-label={t('app.search.close', 'Suche schließen')}>
             <X size={13} aria-hidden="true" />
           </button>
         </div>
@@ -59,11 +62,10 @@ export function SearchDialog({ suche, onKopieren }: { suche: SucheApi; onKopiere
         <div className="max-h-[52vh] overflow-y-auto">
           {suche.query.length < 2 ? (
             <p className="px-4 py-6 text-center text-[13px] text-muted">
-              Mindestens zwei Zeichen. Gesucht wird in allen Werten der aktuellen Erfassung – auch in Feldern, die gerade
-              nicht auf dem Bildschirm stehen.
+              {t('app.search.hint', 'Mindestens zwei Zeichen. Gesucht wird in allen Werten der aktuellen Erfassung – auch in Feldern, die gerade nicht auf dem Bildschirm stehen.')}
             </p>
           ) : treffer.length === 0 ? (
-            <p className="px-4 py-6 text-center text-[13px] text-muted">Nichts gefunden.</p>
+            <p className="px-4 py-6 text-center text-[13px] text-muted">{t('app.search.nothing', 'Nichts gefunden.')}</p>
           ) : (
             <ul className="divide-y divide-line">
               {treffer.map((hit, i) => (
@@ -86,7 +88,7 @@ export function SearchDialog({ suche, onKopieren }: { suche: SucheApi; onKopiere
                     <span
                       role="button"
                       tabIndex={-1}
-                      title="Wert kopieren"
+                      title={t('app.search.copy', 'Wert kopieren')}
                       onClick={(e) => {
                         e.stopPropagation()
                         onKopieren(alsText(hit))
@@ -104,11 +106,11 @@ export function SearchDialog({ suche, onKopieren }: { suche: SucheApi; onKopiere
 
         <div className="flex flex-wrap items-center gap-4 border-t border-line px-4 py-2 font-mono text-[10.5px] text-faint">
           <span className="flex items-center gap-1.5">
-            <CornerDownLeft size={11} aria-hidden="true" /> öffnen
+            <CornerDownLeft size={11} aria-hidden="true" /> {t('app.search.open', 'öffnen')}
           </span>
-          <span>↑ ↓ weiterspringen</span>
-          <span>Strg+C Wert kopieren</span>
-          <span>Esc schließen</span>
+          <span>{t('app.search.next', '↑ ↓ weiterspringen')}</span>
+          <span>{t('app.search.copy', 'Strg+C Wert kopieren')}</span>
+          <span>{t('app.search.close', 'Esc schließen')}</span>
         </div>
       </div>
     </div>

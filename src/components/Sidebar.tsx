@@ -15,7 +15,7 @@ import {
   Usb,
   type LucideIcon,
 } from 'lucide-react'
-import { NAV, type NavId } from '../lib/nav.ts'
+import { navLabel, NAV, type NavId } from '../lib/nav.ts'
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -85,7 +85,7 @@ export function Sidebar({
                     {item.code}
                   </span>
                   <Icon size={15} className={selected ? 'text-accent' : 'text-muted'} aria-hidden="true" />
-                  <span className="truncate text-[13px]">{item.label}</span>
+                  <span className="truncate text-[13px]">{navLabel(item)}</span>
                   {selected && <span className="ml-auto h-4 w-[2px] rounded-full bg-accent" aria-hidden="true" />}
                 </button>
               </li>

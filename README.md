@@ -49,6 +49,38 @@ Weitere Eigenschaften:
 - Diagrammbibliothek selbst geschrieben (SVG), keine Chart-Abhängigkeit
 - `prefers-reduced-motion` wird respektiert
 
+### Bedienung, die bei dreizehn Bereichen nötig wird
+
+- **Globale Suche** mit Strg+F: durchsucht alle Werte der aktuellen
+  Erfassung – auch Felder, die gerade nicht auf dem Bildschirm stehen. Jeder
+  Treffer hat ein Sprungziel, Strg+C kopiert die Zeile. Umlaute und
+  Schreibweisen werden normalisiert („hdd“ findet „HDD“)
+- **Tastenkürzel**: Strg+1 bis Strg+9 springt in den jeweiligen Bereich,
+  Strg+F öffnet die Suche, Escape schließt Overlays
+- **Vergleich mit einer früheren Erfassung**: ein gespeicherter Stand im
+  Benutzerprofil, gegen den eine frische Erfassung gehalten wird. Zeigt
+  hinzugefügte, entfernte und geänderte Bauteile; Momentanwerte wie
+  Ladung oder Auslastung sind als solche getrennt ausgewiesen
+- **Diagramm-Vollbild** über das Symbol am Diagrammkopf, Escape schließt
+- **Drucken und PDF** über die Druckregeln: ohne Navigation, Panels bleiben
+  ganz, Verläufe werden zu Graustufen
+- **Diagnoseblock** für Fehlerberichte: Version, Plattform, Rechtezustand,
+  Laufzeit aller Bereiche und die letzten Protokollzeilen – ohne
+  Seriennummern, kopierfertig in einem Klick
+
+## Sprache
+
+Oberfläche, Navigation und alle technischen Begriffe (SMBIOS-Typen,
+Gehäuseklassen, Geräteklassen, Zustände) sind übersetzt; die Sprache lässt
+sich unter „System & Export" umstellen und wird gemerkt. Fehlt für einen
+Begriff noch eine Übersetzung, bleibt der deutsche Text stehen – es wird
+nichts leer oder unlesbar. Fließtexte der Seiten sind derzeit nur deutsch.
+
+| Sprache | Schlüssel |
+| --- | --- |
+| Deutsch | 228 (Ausgangstext) |
+| Englisch | 259 |
+
 ### Details, die über „welche Hardware steckt drin" hinausgehen
 
 - **PCIe-Link** statt Schätzung: Generation und Lane-Breite kommen aus den
