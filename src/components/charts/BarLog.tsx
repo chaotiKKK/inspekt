@@ -52,7 +52,7 @@ export function BarLog({ rows, empty = 'Noch keine Messwerte.' }: { rows: BarRow
 
   return (
     <div className="space-y-1.5">
-      <div className="relative mb-2 h-4 border-b border-line2 pl-0">
+      <div className="relative h-4 border-b border-line2 pl-0">
         {decades.map((d) => (
           <span
             key={d}

@@ -6,6 +6,9 @@ import { spawn } from 'node:child_process'
 import collectScriptRaw from './collector/collect.ps1?raw'
 import telemetryScriptRaw from './collector/telemetry.ps1?raw'
 import { collect, collectSectionSnapshot, isElevated, startTelemetry, type TelemetryStream } from '../node/collect.ts'
+import { diffSnapshots } from '../shared/diff.ts'
+import { logError, logEntries, logInfo, logStats, logText, logWarn } from '../node/log.ts'
+import type { Snapshot } from '../shared/schema.ts'
 import { startBench, type BenchHandle } from '../node/bench.ts'
 import { scanLan, type LanDevice } from '../node/net-scan.ts'
 import type { BenchResult } from '../shared/bench.ts'
@@ -69,6 +72,78 @@ function collectorPath(fileName: string): string {
 function isMissingScript(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err)
   return /nicht vorhanden|does not exist|cannot find|the system cannot find|ENOENT/i.test(message)
+}
+
+// ---------------------------------------------------------------------------
+// Referenz-Snapshots für den Vergleich
+// ---------------------------------------------------------------------------
+
+export interface SnapshotEntry {
+  id: string
+  label: string
+  createdAt: number
+  collectedAt: string
+  system: string
+  /** Anzahl fehlerhafter Bereiche zum Zeitpunkt der Erfassung */
+  fehlerhaft: string[]
+}
+
+const SNAPSHOT_LIMIT = 20
+
+function snapshotDir(): string {
+  return path.join(app.getPath('userData'), 'snapshots')
+}
+
+function snapshotFile(id: string): string {
+  return path.join(snapshotDir(), `${id}.json`)
+}
+
+/** Dateinamen auf sichere Form bringen, damit nichts aus dem Label in den Pfad wandert. */
+function safeId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
+}
+
+function fileStampISO(at: number): string {
+  const d = new Date(at)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
+}
+
+function readEntry(id: string): SnapshotEntry | null {
+  try {
+    const raw = fsSync.readFileSync(snapshotFile(id), 'utf8')
+    const parsed = JSON.parse(raw) as { entry?: SnapshotEntry }
+    return parsed.entry ?? null
+  } catch {
+    return null
+  }
+}
+
+async function listSnapshots(): Promise<SnapshotEntry[]> {
+  let files: string[] = []
+  try {
+    files = (await fs.readdir(snapshotDir())).filter((f) => f.endsWith('.json'))
+  } catch {
+    return []
+  }
+  const entries: SnapshotEntry[] = []
+  for (const file of files) {
+    const entry = readEntry(path.basename(file, '.json'))
+    if (entry) entries.push(entry)
+  }
+  return entries.sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/** Alte Einträge entfernen, damit das Verzeichnis nicht unbegrenzt wächst. */
+async function pruneSnapshots(): Promise<void> {
+  const entries = await listSnapshots()
+  for (const entry of entries.slice(SNAPSHOT_LIMIT)) {
+    try {
+      await fs.unlink(snapshotFile(entry.id))
+    } catch {
+      /* egal, wird beim nächsten Mal versucht */
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -204,10 +279,17 @@ function registerIpc(): void {
       if (!event.sender.isDestroyed()) event.sender.send('hw:progress', name)
     }
     try {
-      return await collect({ scriptPath: collectorPath('collect.ps1'), onSection })
+      const snapshot = await collect({ scriptPath: collectorPath('collect.ps1'), onSection })
+      const fehler = Object.entries(snapshot.sections).filter(([, s]) => !s.ok)
+      logInfo('collect', `${Object.keys(snapshot.sections).length} Bereiche in ${snapshot.totalMs} ms, ${fehler.length} mit Fehler`)
+      for (const [name, s] of fehler) logWarn('collect', `${name}: ${s.error ?? 'unbekannt'}`)
+      return snapshot
     } catch (err) {
-      if (!isMissingScript(err)) throw err
-      // the script disappeared between resolution and launch – rewrite and retry once
+      if (!isMissingScript(err)) {
+        logError('collect', err instanceof Error ? err.message : String(err))
+        throw err
+      }
+      logWarn('collect', 'Skript fehlte beim Start, wird neu geschrieben und erneut versucht')
       return await collect({ scriptPath: collectorPath('collect.ps1'), onSection })
     }
   })
@@ -217,7 +299,11 @@ function registerIpc(): void {
     try {
       return await collectSectionSnapshot(collectorPath('collect.ps1'), names)
     } catch (err) {
-      if (!isMissingScript(err)) throw err
+      if (!isMissingScript(err)) {
+        logError('sections', `${names.join(',')}: ${err instanceof Error ? err.message : String(err)}`)
+        throw err
+      }
+      logWarn('sections', `${names.join(',')}: Skript fehlte, wird neu geschrieben`)
       return await collectSectionSnapshot(collectorPath('collect.ps1'), names)
     }
   })
@@ -236,6 +322,54 @@ function registerIpc(): void {
     telemetry?.stop()
     telemetry = null
     return true
+  })
+
+  ipcMain.handle('snapshot:list', () => listSnapshots())
+
+  ipcMain.handle('snapshot:save', async (_event, label: string) => {
+    const clean = String(label ?? '').trim().slice(0, 60) || 'Referenz'
+    const snapshot = await collect({ scriptPath: collectorPath('collect.ps1') })
+    const id = `${fileStampISO(Date.now())}-${safeId(clean).slice(0, 12)}`
+    const entry: SnapshotEntry = {
+      id,
+      label: clean,
+      createdAt: Date.now(),
+      collectedAt: snapshot.collectedAt,
+      system: `${snapshot.sections.system.data?.manufacturer ?? ''} ${snapshot.sections.system.data?.model ?? ''}`.trim() || 'unbekanntes System',
+      fehlerhaft: Object.entries(snapshot.sections)
+        .filter(([, s]) => !s.ok)
+        .map(([name]) => name),
+    }
+    await fs.mkdir(snapshotDir(), { recursive: true })
+    await fs.writeFile(snapshotFile(id), `${JSON.stringify({ entry, snapshot }, null, 2)}\n`, 'utf8')
+    await pruneSnapshots()
+    return entry
+  })
+
+  ipcMain.handle('snapshot:load', async (_event, id: string) => {
+    const file = snapshotFile(String(id ?? ''))
+    const raw = await fs.readFile(file, 'utf8')
+    const parsed = JSON.parse(raw) as { entry?: SnapshotEntry; snapshot?: unknown }
+    if (!parsed.snapshot) throw new Error('Referenz enthält keinen Snapshot.')
+    return { entry: parsed.entry ?? null, snapshot: parsed.snapshot }
+  })
+
+  ipcMain.handle('snapshot:delete', async (_event, id: string) => {
+    try {
+      await fs.unlink(snapshotFile(String(id ?? '')))
+      return true
+    } catch {
+      return false
+    }
+  })
+
+  ipcMain.handle('snapshot:diff', async (_event, id: string) => {
+    const file = snapshotFile(String(id ?? ''))
+    const raw = await fs.readFile(file, 'utf8')
+    const parsed = JSON.parse(raw) as { snapshot?: unknown }
+    if (!parsed.snapshot) throw new Error('Referenz enthält keinen Snapshot.')
+    const aktuell = await collect({ scriptPath: collectorPath('collect.ps1') })
+    return diffSnapshots(parsed.snapshot as Snapshot, aktuell)
   })
 
   ipcMain.handle('net:scan', async (event) => {
@@ -317,6 +451,39 @@ function registerIpc(): void {
     userData: app.getPath('userData'),
     exe: process.execPath,
   }))
+
+  ipcMain.handle('log:list', (_event, limit?: number) => logEntries(typeof limit === 'number' ? limit : 200))
+
+  // Bündelt alles, was für einen Fehlerbericht nützlich ist – inklusive der
+  // letzten Protokollzeilen. Bewusst als Text zum Kopieren gedacht.
+  ipcMain.handle('diag:block', async (_event, snapshot: unknown) => {
+    const teile: string[] = []
+    teile.push(`Inspekt ${app.getVersion()} (${app.isPackaged ? 'installiert' : 'Entwicklung'})`)
+    teile.push(`Plattform: ${process.platform} ${process.arch} · Node ${process.versions.node} · Electron ${process.versions.electron}`)
+    teile.push(`Sprache: ${app.getLocale()} · Benutzerrechte: ${(await isElevated()) ? 'erhöht' : 'Standard'}`)
+    teile.push(`Speicherort: ${app.getPath('userData')}`)
+    teile.push(`Startbild: ${process.execPath}`)
+
+    const rohdaten = snapshot as { psVersion?: string; collectedAt?: string; sections?: Record<string, { ok: boolean; ms?: number; error?: string }> } | null
+    if (rohdaten?.psVersion) teile.push(`PowerShell: ${rohdaten.psVersion}`)
+    if (rohdaten?.collectedAt) teile.push(`Erfassung: ${rohdaten.collectedAt}`)
+    const fehler = Object.entries(rohdaten?.sections ?? {})
+      .filter(([, s]) => !s.ok)
+      .map(([name, s]) => `${name}: ${s.error ?? 'unbekannt'}`)
+    teile.push(`Bereiche mit Fehlern: ${fehler.length === 0 ? 'keine' : fehler.join(' | ')}`)
+
+    const schnitte = Object.entries(rohdaten?.sections ?? {})
+      .map(([name, s]) => `${name}=${s.ok ? `${s.ms ?? '?'} ms` : 'fehler'}`)
+      .join(' ')
+    if (schnitte) teile.push(`Laufzeiten: ${schnitte}`)
+
+    const stats = logStats()
+    teile.push(`Protokoll: ${stats.gesamt} Einträge, ${stats.warnungen} Warnungen, ${stats.fehler} Fehler`)
+    teile.push('')
+    teile.push('--- letzte Protokollzeilen ---')
+    teile.push(logText(40))
+    return teile.join('\n')
+  })
 
   ipcMain.handle(
     'hw:export',

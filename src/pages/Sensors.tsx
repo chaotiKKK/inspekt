@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CellGrid } from '../components/charts/Mini.tsx'
+import { ChartFrame } from '../components/charts/ChartFrame.tsx'
 import { LiveChart, SERIES_COLORS } from '../components/charts/LiveChart.tsx'
 import { Badge, DataTable, EmptyState, Meter, Notice, Panel, Ring, Sparkline, StatTile } from '../components/ui.tsx'
 import { bytes, celsius, num, percent, rate, watt } from '../lib/format.ts'
@@ -36,24 +37,26 @@ export function SensorsPage({ snapshot, telemetry, elevated, onElevate, settings
         title="Verlauf – alle Kennzahlen im Bild"
         right={settings.telemetry ? <Badge tone="good">live</Badge> : <Badge>statisch</Badge>}
       >
-        <LiveChart
-          times={telemetry.history.map((h) => h.at)}
-          series={[
-            { id: 'cpu', label: 'CPU', color: SERIES_COLORS[0], unit: '%', values: telemetry.history.map((h) => h.cpuLoadPercent ?? null) },
-            {
-              id: 'mem',
-              label: 'RAM',
-              color: SERIES_COLORS[1],
-              unit: '%',
-              values: telemetry.history.map((h) =>
-                h.memoryTotalMB ? ((h.memoryTotalMB - (h.memoryFreeMB ?? 0)) / h.memoryTotalMB) * 100 : null,
-              ),
-            },
-            { id: 'gpu', label: 'GPU-Last', color: SERIES_COLORS[2], unit: '%', values: telemetry.history.map((h) => h.gpuUtilPct ?? null) },
-            { id: 'gput', label: 'GPU-Temp.', color: SERIES_COLORS[3], unit: '°C', values: telemetry.history.map((h) => h.gpuTempC ?? null) },
-            { id: 'net', label: 'Netz ein', color: SERIES_COLORS[4], unit: 'kB/s', values: telemetry.history.map((h) => (h.rxBps === null || h.rxBps === undefined ? null : h.rxBps / 1024)) },
-          ]}
-        />
+        <ChartFrame titel="Verlauf aller Kennzahlen" hinweis="jede Kurve mit eigenem Maßstab">
+          <LiveChart
+            times={telemetry.history.map((h) => h.at)}
+            series={[
+              { id: 'cpu', label: 'CPU', color: SERIES_COLORS[0], unit: '%', values: telemetry.history.map((h) => h.cpuLoadPercent ?? null) },
+              {
+                id: 'mem',
+                label: 'RAM',
+                color: SERIES_COLORS[1],
+                unit: '%',
+                values: telemetry.history.map((h) =>
+                  h.memoryTotalMB ? ((h.memoryTotalMB - (h.memoryFreeMB ?? 0)) / h.memoryTotalMB) * 100 : null,
+                ),
+              },
+              { id: 'gpu', label: 'GPU-Last', color: SERIES_COLORS[2], unit: '%', values: telemetry.history.map((h) => h.gpuUtilPct ?? null) },
+              { id: 'gput', label: 'GPU-Temp.', color: SERIES_COLORS[3], unit: '°C', values: telemetry.history.map((h) => h.gpuTempC ?? null) },
+              { id: 'net', label: 'Netz ein', color: SERIES_COLORS[4], unit: 'kB/s', values: telemetry.history.map((h) => (h.rxBps === null || h.rxBps === undefined ? null : h.rxBps / 1024)) },
+            ]}
+          />
+        </ChartFrame>
         <p className="mt-3 border-t border-line pt-3 text-[12.5px] leading-relaxed text-muted">
           Jede Kurve hat ihren eigenen Maßstab, weil die Einheiten unterschiedlich sind (%, °C, kB/s). In der Legende steht der
           jeweilige Höchstwert im Fenster. Messpunkt alle 1,5 Sekunden.

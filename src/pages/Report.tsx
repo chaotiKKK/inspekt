@@ -1,17 +1,57 @@
-import { useState } from 'react'
-import { FileDown, FileJson, FileSpreadsheet, FileText, Moon, Sun } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ClipboardCopy, FileDown, FileJson, FileSpreadsheet, FileText, Moon, Printer, Sun } from 'lucide-react'
+import { SnapshotCompare } from '../components/SnapshotCompare.tsx'
 import { Badge, KV, Notice, Panel, StatTile } from '../components/ui.tsx'
 import { bytes, dateTime, duration, num } from '../lib/format.ts'
 import { fileStamp, buildCsv, buildHtml, buildJson, type ReportFormat } from '../lib/export.ts'
+import { kopieren } from '../lib/search.ts'
 import { useAppInfo } from '../lib/hooks.ts'
+import type { LogEntry } from '../../shared/api.ts'
 import type { PageProps } from './PageProps.ts'
 
 export function ReportPage({ snapshot, report, elevated, settings, patchSettings }: PageProps): React.ReactNode {
   const info = useAppInfo()
   const [message, setMessage] = useState<{ tone: 'good' | 'bad' | 'neutral'; text: string } | null>(null)
   const [busy, setBusy] = useState<ReportFormat | null>(null)
+  const [diag, setDiag] = useState<string | null>(null)
+  const [logEintraege, setLogEintraege] = useState<LogEntry[]>([])
 
   const sys = snapshot?.sections.system.data ?? null
+
+  const loadLog = useCallback(async () => {
+    try {
+      const eintraege = await window.inspekt.logList(120)
+      setLogEintraege(eintraege)
+    } catch {
+      setLogEintraege([])
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadLog()
+  }, [loadLog, snapshot?.collectedAt])
+
+  const logStats = (() => {
+    const fehler = logEintraege.filter((e) => e.level === 'error').length
+    const warnungen = logEintraege.filter((e) => e.level === 'warn').length
+    return { gesamt: logEintraege.length, warnungen, fehler }
+  })()
+
+  async function buildDiag(): Promise<void> {
+    setDiag('wird erstellt …')
+    try {
+      const text = await window.inspekt.diagBlock(snapshot)
+      const ok = await kopieren(text)
+      setDiag(text)
+      setMessage({
+        tone: ok ? 'good' : 'neutral',
+        text: ok ? 'Diagnoseblock in die Zwischenablage kopiert.' : 'Diagnoseblock erzeugt – bitte unten markieren und kopieren.',
+      })
+    } catch (err) {
+      setDiag(null)
+      setMessage({ tone: 'bad', text: (err as Error).message || 'Diagnoseblock fehlgeschlagen.' })
+    }
+  }
 
   async function exportAs(format: ReportFormat): Promise<void> {
     if (!snapshot || busy) return
@@ -54,6 +94,16 @@ export function ReportPage({ snapshot, report, elevated, settings, patchSettings
       </div>
 
       <Panel code="EXP" title="Bericht exportieren">
+        <div className="mb-4 flex flex-wrap items-center gap-3 no-print">
+          <button type="button" className="btn flex items-center gap-2" onClick={() => window.print()}>
+            <Printer size={14} aria-hidden="true" />
+            Drucken oder als PDF sichern
+          </button>
+          <span className="text-[12.5px] text-muted">
+            Druckt die gerade gezeigte Seite ohne Navigation. Über „Als PDF sichern" entsteht eine Datei, die sich weitergeben
+            lässt.
+          </span>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           {buttons.map(({ format, label, hint, Icon }) => (
             <button
@@ -87,6 +137,8 @@ export function ReportPage({ snapshot, report, elevated, settings, patchSettings
           Administratorrechte leer bleiben. So lässt sich später nachvollziehen, was das System wirklich gemeldet hat.
         </p>
       </Panel>
+
+      <SnapshotCompare hasSnapshot={snapshot !== null} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel code="SET" title="Einstellungen">
@@ -187,6 +239,61 @@ export function ReportPage({ snapshot, report, elevated, settings, patchSettings
           </div>
         </Panel>
       </div>
+
+      <Panel code="DIAG" title="Diagnoseblock für Fehlerberichte">
+        <div className="flex flex-wrap items-center gap-3 no-print">
+          <button
+            type="button"
+            className="btn btn-primary flex items-center gap-2"
+            onClick={() => void buildDiag()}
+            disabled={diag === 'wird erstellt …'}
+          >
+            <ClipboardCopy size={14} aria-hidden="true" />
+            {diag === 'wird erstellt …' ? 'Wird erstellt …' : 'Für Support kopieren'}
+          </button>
+          <button type="button" className="btn" onClick={() => void loadLog()}>
+            Protokoll neu laden
+          </button>
+          {logStats && (
+            <Badge tone={logStats.fehler > 0 ? 'bad' : logStats.warnungen > 0 ? 'warn' : 'good'}>
+              {logStats.gesamt} Einträge · {logStats.warnungen} Warnungen · {logStats.fehler} Fehler
+            </Badge>
+          )}
+        </div>
+
+        {diag && diag !== 'wird erstellt …' && (
+          <pre className="mt-4 max-h-64 overflow-auto rounded border border-line bg-panel2 px-3 py-2.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
+            {diag}
+          </pre>
+        )}
+
+        {logEintraege.length > 0 && (
+          <div className="mt-4 border-t border-line pt-4">
+            <div className="eyebrow mb-2">Letzte Protokollzeilen</div>
+            <ul className="max-h-56 space-y-1 overflow-auto font-mono text-[11px]">
+              {logEintraege.slice(0, 40).map((e) => (
+                <li key={`${e.at}-${e.quelle}`} className="flex gap-2">
+                  <span className="shrink-0 text-faint">{new Date(e.at).toLocaleTimeString('de-DE')}</span>
+                  <span
+                    className={`w-14 shrink-0 uppercase ${
+                      e.level === 'error' ? 'text-rose-500' : e.level === 'warn' ? 'text-amber-500' : 'text-faint'
+                    }`}
+                  >
+                    {e.level}
+                  </span>
+                  <span className="w-24 shrink-0 truncate text-faint">{e.quelle}</span>
+                  <span className="min-w-0 flex-1 text-muted">{e.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
+          Der Block enthält Version, Plattform, Rechtezustand, Speicherort, Laufzeiten aller Bereiche und die letzten
+          Protokollzeilen – aber keine Seriennummern. Er eignet sich direkt für das Fehlerformular auf GitHub.
+        </p>
+      </Panel>
 
       <Panel code="SEC" title="Datenschutz">
         <div className="flex flex-wrap items-start gap-4">

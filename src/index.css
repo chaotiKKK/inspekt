@@ -187,6 +187,60 @@ body {
   animation: pulse-ring 2.2s ease-out infinite;
 }
 
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    background: #fff;
+    color: #000;
+  }
+
+  /* Navigation, Kopf- und Fußleiste, Bedienelemente gehören nicht auf Papier */
+  .no-print,
+  aside,
+  header,
+  footer {
+    display: none !important;
+  }
+
+  main {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .panel {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-color: #c8ccd4 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  main > div {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+
+  /* Verläufe und Schatten kosten Druckertinte und zeigen schlecht */
+  [class*='shadow'] {
+    box-shadow: none !important;
+  }
+
+  svg {
+    max-width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -30,9 +30,15 @@ const api: InspektApi = {
   onBenchProgress: (callback) => subscribe('bench:progress', callback),
   onBenchHistoryChanged: (callback) => subscribe('bench:historyChanged', callback),
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  snapshotList: () => ipcRenderer.invoke('snapshot:list'),
+  snapshotSave: (label: string) => ipcRenderer.invoke('snapshot:save', label),
+  snapshotDelete: (id: string) => ipcRenderer.invoke('snapshot:delete', id),
+  snapshotDiff: (id: string) => ipcRenderer.invoke('snapshot:diff', id),
   netScan: () => ipcRenderer.invoke('net:scan'),
   netScanCancel: () => ipcRenderer.invoke('net:scanCancel'),
   onNetScanProgress: (callback) => subscribe('net:scanProgress', callback),
+  logList: (limit?: number) => ipcRenderer.invoke('log:list', limit),
+  diagBlock: (snapshot: unknown) => ipcRenderer.invoke('diag:block', snapshot),
   platform: process.platform,
 }
 

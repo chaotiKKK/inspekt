@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChartOverlay } from './components/charts/ChartFrame.tsx'
+import { SearchDialog } from './components/SearchDialog.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Topbar } from './components/Topbar.tsx'
 import { Notice } from './components/ui.tsx'
 import { useAppInfo, useSnapshot, useTelemetry } from './lib/hooks.ts'
 import { NAV, navItem, type NavId } from './lib/nav.ts'
 import { buildPortReport } from './lib/ports.ts'
+import { baueIndex, kopieren, useSuche, type SearchHit } from './lib/search.ts'
 import { applyTheme, updateSettings, useSettings } from './lib/settings.ts'
 import { OverviewPage } from './pages/Overview.tsx'
 import { MemoryPage } from './pages/Memory.tsx'
@@ -73,6 +76,37 @@ export default function App(): React.ReactNode {
     if (item.sections.length > 0) void refreshSections(item.sections)
   }, [item, refreshSections])
 
+  const index = useMemo(() => baueIndex(snapshot), [snapshot])
+  const suche = useSuche(index, useCallback((hit: SearchHit) => setActive(hit.nav), []))
+
+  const [kopiert, setKopiert] = useState<string | null>(null)
+  const kopierenUndMelden = useCallback((text: string) => {
+    void kopieren(text).then((ok) => {
+      setKopiert(ok ? 'In die Zwischenablage kopiert.' : 'Kopieren nicht möglich.')
+      setTimeout(() => setKopiert(null), 1600)
+    })
+  }, [])
+
+  // Strg+1..9 springt direkt in einen Bereich
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+      if (e.key === '/') {
+        e.preventDefault()
+        suche.oeffnen()
+        return
+      }
+      const ziffer = Number(e.key)
+      if (!Number.isInteger(ziffer) || ziffer < 1) return
+      const ziel = NAV[ziffer - 1]
+      if (!ziel) return
+      e.preventDefault()
+      setActive(ziel.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [suche])
+
   const pageProps: PageProps = {
     snapshot,
     loading,
@@ -135,6 +169,14 @@ export default function App(): React.ReactNode {
               </div>
             )}
 
+            {kopiert && (
+              <div className="mb-5">
+                <Notice tone="good" title="Kopiert">
+                  {kopiert}
+                </Notice>
+              </div>
+            )}
+
             {!snapshot ? <LoadingScreen progress={progress} loading={loading} /> : <Page {...pageProps} />}
           </div>
         </main>
@@ -146,6 +188,14 @@ export default function App(): React.ReactNode {
               nvidia-smi
             </span>
             <span className="flex items-center gap-4">
+              <button
+                type="button"
+                className="underline decoration-line2 underline-offset-2 transition-colors hover:text-accent"
+                onClick={() => suche.oeffnen()}
+                title="Strg+F"
+              >
+                Suchen (Strg+F)
+              </button>
               {snapshot && <span>Datenstand {new Date(snapshot.collectedAt).toLocaleString('de-DE')}</span>}
               <button
                 type="button"
@@ -158,6 +208,9 @@ export default function App(): React.ReactNode {
           </div>
         </footer>
       </div>
+
+      <SearchDialog suche={suche} onKopieren={kopierenUndMelden} />
+      <ChartOverlay />
     </div>
   )
 }

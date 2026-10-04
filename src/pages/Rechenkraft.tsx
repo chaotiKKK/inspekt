@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Gauge, PlayCircle, XCircle } from 'lucide-react'
 import { BarLog, type BarRow } from '../components/charts/BarLog.tsx'
+import { ChartFrame } from '../components/charts/ChartFrame.tsx'
 import { LiveChart, SERIES_COLORS } from '../components/charts/LiveChart.tsx'
 import { MiniBars } from '../components/charts/Mini.tsx'
 import { ScatterLog, type ScatterPoint } from '../components/charts/ScatterLog.tsx'
@@ -366,8 +367,10 @@ export function RechenkraftPage({ snapshot }: PageProps): React.ReactNode {
       </Panel>
 
       <Panel code="CMP" title="Rechner im Vergleich – Spitzenleistung (Log10)">
-        <BarLog rows={barRows} empty="Noch keine Vergleichswerte." />
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-line pt-3 font-mono text-[10.5px] text-faint">
+        <ChartFrame titel="Spitzenleistung im Vergleich" hinweis={`${REFERENCE_MACHINES.length} Referenzrechner · Log10-Achse`}>
+          <BarLog rows={barRows} empty="Noch keine Vergleichswerte." />
+        </ChartFrame>
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-line pt-3 font-mono text-[10.5px] text-faint">
           <span>{REFERENCE_MACHINES.length} Referenzrechner</span>
           <span>≈ Schätzwert aus Taktrate/MIPS</span>
           <span>◇ veröffentlichter Herstellerwert</span>
@@ -396,19 +399,23 @@ export function RechenkraftPage({ snapshot }: PageProps): React.ReactNode {
       </Panel>
 
       <Panel code="HIST" title="Zeitachse – Baujahr gegen Leistung">
-        <ScatterLog
-          points={scatterPoints}
-          labelIds={['eniac', 'cray1', 'c64', 'pentium66', 'p3', 'ps5', 'rtx4090', 'frontier']}
-        />
+        <ChartFrame titel="Baujahr gegen Spitzenleistung" hinweis="logarithmisch auf beiden Achsen">
+          <ScatterLog
+            points={scatterPoints}
+            labelIds={['eniac', 'cray1', 'c64', 'pentium66', 'p3', 'ps5', 'rtx4090', 'frontier']}
+          />
+        </ChartFrame>
         <div className="mt-3 border-t border-line pt-3 font-mono text-[10.5px] text-faint">
-          Beide Achsen logarithmisch außer der Zeit – gestrichelte Punkte sind Schätzungen. Detailtext erscheint beim
-          Überfahren eines Punktes.
+          Die Zeitachse ist linear, die Leistungsachse logarithmisch. Gestrichelte Punkte sind Schätzungen, der eigene
+          Rechner pulsiert. Detailtext erscheint beim Überfahren eines Punktes.
         </div>
       </Panel>
 
       <Panel code="TIME" title="Zeitvergleich – was die Referenz für 1 Sekunde dieses Rechners braucht">
         {timeItems.length > 0 ? (
-          <TimeBars items={timeItems} />
+          <ChartFrame titel="Wie lange die Referenz für 1 Sekunde braucht" hinweis="Balkenlänge logarithmisch">
+            <TimeBars items={timeItems} />
+          </ChartFrame>
         ) : (
           <div className="rounded border border-dashed border-line px-4 py-6 text-center text-[13px] text-muted">
             Nach dem Benchmark siehst du hier, wie lange ENIAC, Commodore 64 oder eine PlayStation 5 für dieselbe Rechnung

@@ -315,6 +315,40 @@ const features = await call<{ result?: { value?: string } }>('Runtime.evaluate',
     const monHead = mon.slice(0, 120);
     const sto = await go('Speicher');
     const mem = await go('Arbeitsspeicher');
+    const rep = await go('System & Export');
+
+    // Suche über die Tastatur öffnen, Wert tippen, wieder schließen
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true }));
+    await sleep(400);
+    const sucheDialog = document.querySelector('[role="dialog"]') !== null;
+    const feld = document.querySelector('[role="dialog"] input');
+    if (feld) {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(feld, 'OMEN');
+      feld.dispatchEvent(new Event('input', { bubbles: true }));
+      await sleep(600);
+    }
+    const sucheTreffer = document.querySelectorAll('[role="dialog"] ul li').length;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await sleep(400);
+    const sucheZu = document.querySelector('[role="dialog"]') === null;
+
+    // Vergleich: Referenz merken und dagegen prüfen
+    const saveKnopf = document.querySelector('[data-compare="save"]');
+    if (saveKnopf) {
+      saveKnopf.click();
+      await sleep(11000);
+    }
+    const laufKnopf = document.querySelector('[data-compare="run"]');
+    if (laufKnopf) {
+      laufKnopf.click();
+      await sleep(13000);
+    }
+    let vergleichZeilen = 0;
+    for (const t of [...document.querySelectorAll('.panel table')]) {
+      if (t.textContent?.includes('Vorher') && t.textContent?.includes('Jetzt')) vergleichZeilen += t.querySelectorAll('tbody tr').length;
+    }
+
     let monData = null;
     let stoData = null;
     try { monData = (await window.inspekt.sections(['monitors']))?.monitors?.data ?? null; } catch (e) { monData = null; }
@@ -345,6 +379,35 @@ const features = await call<{ result?: { value?: string } }>('Runtime.evaluate',
       modesData: (monData?.displayModes ?? []).length,
       pcieText: sto.includes('gen4') || sto.includes('gen3') || sto.includes('gen5'),
       pcieDisk: (stoData?.disks ?? []).filter(d => d.pcie).length,
+      sucheDialog,
+      sucheTreffer,
+      sucheZu,
+      vergleichBereich: rep.includes('vergleich mit einer fr') && rep.includes('erfassung'),
+      vergleichZeilen,
+      diagBlock: await (async () => {
+        try {
+          const block = await window.inspekt.diagBlock(null);
+          return { len: block.length, hatVersion: block.includes('Inspekt'), hatLog: block.includes('Protokoll') };
+        } catch (e) {
+          return { err: String(e) };
+        }
+      })(),
+      logApi: typeof window.inspekt.logList === 'function',
+      logEintraege: await (async () => {
+        try { return (await window.inspekt.logList(50)).length; } catch (e) { return -1; }
+      })(),
+      vollbild: await (async () => {
+        await go('Rechenkraft');
+        const knopf = [...document.querySelectorAll('.chart-frame button')].pop();
+        if (!knopf) return { ok: false };
+        knopf.click();
+        await sleep(700);
+        const offen = document.querySelectorAll('[role="dialog"]').length;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await sleep(500);
+        const zu = document.querySelectorAll('[role="dialog"]').length;
+        return { ok: offen > 0 && zu === 0 };
+      })(),
       sector: sto.includes('blockgröße') || sto.includes('blockgrö'),
       channels: mem.includes('kanäle') || mem.includes('kanale')
     });
@@ -470,6 +533,15 @@ interface FeatureReport {
   pcieDisk?: number
   sector?: boolean
   channels?: boolean
+  sucheDialog?: boolean
+  sucheTreffer?: number
+  sucheZu?: boolean
+  vergleichBereich?: boolean
+  vergleichZeilen?: number
+  diagBlock?: { len?: number; hatVersion?: boolean; hatLog?: boolean; err?: string }
+  logApi?: boolean
+  logEintraege?: number
+  vollbild?: { ok?: boolean }
 }
 let feat: FeatureReport = {}
 try {
@@ -499,6 +571,12 @@ const checks: [string, boolean, string | null][] = [
   ['PCIe-Link angezeigt', feat.pcieText === true && (feat.pcieDisk ?? 0) > 0, `${String(feat.pcieDisk)} Laufwerke mit PCIe-Angabe`],
   ['Sektorgroessen angezeigt', feat.sector === true, null],
   ['Speicherkanaele erkannt', feat.channels === true, null],
+  ['globale Suche öffnet', feat.sucheDialog === true && feat.sucheZu === true, null],
+  ['globale Suche findet Werte', (feat.sucheTreffer ?? 0) >= 1, `${String(feat.sucheTreffer)} Treffer für „OMEN“`],
+  ['Vergleich mit Referenz', feat.vergleichBereich === true && (feat.vergleichZeilen ?? 0) >= 0, `${String(feat.vergleichZeilen)} Zeilen im Vergleich`],
+  ['Diagnoseblock erzeugt', (feat.diagBlock?.len ?? 0) > 200 && feat.diagBlock?.hatVersion === true, `${String(feat.diagBlock?.len)} Zeichen`],
+  ['Ringpuffer-Protokoll', feat.logApi === true && (feat.logEintraege ?? -1) >= 0, `${String(feat.logEintraege)} Einträge`],
+  ['Diagramm im Vollbild', feat.vollbild?.ok === true, null],
   ['Balken gerendert', (benchReport.bars ?? 0) >= 8, `${String(benchReport.bars)} Balken`],
   ['Referenzen enthalten', benchReport.historical === true && benchReport.compare === true && benchReport.time === true, null],
   ['Score-Formel erklärt', benchReport.note === true, null],
