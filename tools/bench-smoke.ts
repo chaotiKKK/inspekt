@@ -1,5 +1,5 @@
 import { startBench } from '../node/bench.ts'
-import { BENCH_TOTAL, computeScore, type BenchProgress } from '../shared/bench.ts'
+import { BENCH_TOTAL, computeScore, LATENCY_SIZES, latencyTier, type BenchProgress } from '../shared/bench.ts'
 import { REFERENCE_MACHINES, secondsForReference, siValue, speedFactor } from '../shared/compare.ts'
 
 let failures = 0
@@ -50,6 +50,28 @@ ok('Score positiv', result.score > 0, `${result.score} Punkte`)
 ok('Fortschritt meldet alle', seen.length >= BENCH_TOTAL, seen.map((s) => s.task).join(', '))
 ok('Fortschritt wächst', seen.every((s, i) => i === 0 || s.pct > 0), `${seen.map((s) => Math.round(s.pct)).join('→')} %`)
 ok('Score-Formel reproduzierbar', computeScore(result) === result.score, `${result.score}`)
+
+console.log('\nspeicherteile')
+ok('Schreibbandbreite messbar', (result.memWriteBytesPerSec ?? 0) > 100 * 1024 ** 2, `${((result.memWriteBytesPerSec ?? 0) / 1024 ** 3).toFixed(1)} GB/s`)
+ok('Lesbandbreite messbar', (result.memReadBytesPerSec ?? 0) > 100 * 1024 ** 2, `${((result.memReadBytesPerSec ?? 0) / 1024 ** 3).toFixed(1)} GB/s`)
+ok('Kopierbandbreite messbar', (result.memCopyBytesPerSec ?? 0) > 100 * 1024 ** 2, `${((result.memCopyBytesPerSec ?? 0) / 1024 ** 3).toFixed(1)} GB/s`)
+ok('Bandbreiten liegen in derselben Größenordnung', (() => {
+  const values = [result.memWriteBytesPerSec ?? 0, result.memReadBytesPerSec ?? 0, result.memCopyBytesPerSec ?? 0]
+  return Math.max(...values) / Math.min(...values) < 4
+})(), 'Faktor < 4 zwischen den drei Werten')
+
+console.log('\nlatenz-sweep')
+const latency = result.latency ?? []
+ok('vier arbeitssets gemessen', latency.length === 4, latency.map((l) => `${l.bytes / 1024} KiB`).join(', '))
+ok('arbeitssets steigen monoton', latency.every((l, i) => i === 0 || l.bytes > latency[i - 1].bytes))
+ok('latenz wächst mit der größe', latency.length === 4 && latency[3].ns > latency[0].ns * 3, latency.map((l) => `${l.ns.toFixed(1)} ns`).join(' < '))
+ok('l1-latenz ist realistisch', (latency[0]?.ns ?? 99) < 20, `${(latency[0]?.ns ?? 0).toFixed(1)} ns`)
+ok('ram-latenz ist realistisch', (latency[3]?.ns ?? 0) > 40, `${(latency[3]?.ns ?? 0).toFixed(1)} ns`)
+ok('stufen sind benannt', LATENCY_SIZES.every((s) => latencyTier(s).length > 0), LATENCY_SIZES.map(latencyTier).join(' / '))
+
+console.log('\nleistung')
+ok('leistung entweder messbar oder ehrlich null', (result.powerWatts ?? null) === null || (result.powerWatts ?? 0) > 0, `powerWatts=${String(result.powerWatts)} quelle=${String(result.powerSource)}`)
+ok('gflops pro watt nur mit watt', (result.gflopsPerWatt ?? null) === null || (result.powerWatts ?? null) !== null)
 
 console.log('\nreferenzdaten')
 ok('~30 Maschinen hinterlegt', REFERENCE_MACHINES.length >= 28, `${REFERENCE_MACHINES.length} Einträge`)

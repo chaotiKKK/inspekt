@@ -17,6 +17,12 @@ export type MachineKind =
 
 export type Basis = 'angabe' | 'schätzung'
 
+/** Herkunft eines Referenzwerts – als Link in der Oberfläche. */
+export interface ReferenceSource {
+  label: string
+  url: string
+}
+
 export interface ReferenceMachine {
   id: string
   name: string
@@ -27,6 +33,7 @@ export interface ReferenceMachine {
   clockMHz?: number | null
   transistors?: number | null
   note?: string
+  source?: ReferenceSource | null
 }
 
 export const REFERENCE_MACHINES: ReferenceMachine[] = [
@@ -64,7 +71,73 @@ export const REFERENCE_MACHINES: ReferenceMachine[] = [
   { id: 'rtx4090', name: 'NVIDIA RTX 4090', year: 2022, kind: 'Grafikkarte', gflops: 82584, basis: 'angabe', note: '82,6 TFLOPS FP32' },
   { id: 'r9', name: 'AMD Ryzen 9 7950X', year: 2022, kind: 'Rechner', gflops: 1450, basis: 'schätzung', clockMHz: 5700, note: '16 Kerne, AVX2-FMA-Spitze' },
   { id: 'frontier', name: 'Frontier (TOP500)', year: 2022, kind: 'Supercomputer', gflops: 1.19e12, basis: 'angabe', note: '1,19 EFLOPS, schnellster Rechner 2022' },
+  { id: 'i4004', name: 'Intel 4004', year: 1971, kind: 'Rechner', gflops: 1.2e-3, basis: 'schätzung', clockMHz: 0.74, transistors: 2300, note: '740 kHz, 4-Bit-ALU – erster Ein-Chip-Prozessor' },
+  { id: 'cdc6600', name: 'CDC 6600', year: 1964, kind: 'Supercomputer', gflops: 3, basis: 'angabe', clockMHz: 1, transistors: 400000, note: '≈ 3 MFLOPS, zehn Rechenwerke parallel' },
+  { id: 'vectrex', name: 'Vectrex', year: 1982, kind: 'Konsole', gflops: 0.05, basis: 'schätzung', clockMHz: 1.79, note: '6809-Prozessor, vektorbasierte Spielepraktiken' },
+  { id: 'genesis', name: 'Sega Mega Drive', year: 1989, kind: 'Konsole', gflops: 0.4, basis: 'schätzung', clockMHz: 7.67, note: '68000 plus Z80-Soundchip' },
+  { id: 'snes', name: 'Super Nintendo', year: 1990, kind: 'Konsole', gflops: 0.5, basis: 'schätzung', clockMHz: 3.58, note: 'Ricoh 5A22, gemeinsamer Bus für CPU und PPU' },
+  { id: 'jaguar', name: 'Atari Jaguar', year: 1994, kind: 'Konsole', gflops: 0.1, basis: 'schätzung', clockMHz: 26, note: '68000 plus zwei "Tom" Signalprozessoren' },
+  { id: 'dreamcast', name: 'Sega Dreamcast', year: 1998, kind: 'Konsole', gflops: 2, basis: 'schätzung', clockMHz: 200, note: 'SH-4 mit V5-Shader, DirectX-Beschleuniger' },
+  { id: 'gamecube', name: 'Nintendo GameCube', year: 2001, kind: 'Konsole', gflops: 1.4, basis: 'schätzung', clockMHz: 486, note: 'IBM Gekko, 32-Bit-Gleitkomma' },
+  { id: 'xbox', name: 'Microsoft Xbox (original)', year: 2001, kind: 'Konsole', gflops: 6.6, basis: 'schätzung', clockMHz: 1730, note: 'Pentium III 1,73 GHz, DirectX-Vertexshader' },
+  { id: 'rpi4', name: 'Raspberry Pi 4 (8 GB)', year: 2019, kind: 'SoC', gflops: 2, basis: 'schätzung', clockMHz: 1500, note: '8× Cortex-A72, 32-Bit-NEON' },
+  { id: 'rpi5', name: 'Raspberry Pi 5', year: 2023, kind: 'SoC', gflops: 4, basis: 'schätzung', clockMHz: 2400, note: '4× Cortex-A76, GPU nur für Bilddaten' },
+  { id: 'seriesx', name: 'Xbox Series X', year: 2020, kind: 'Konsole', gflops: 10300, basis: 'angabe', clockMHz: 3700, note: '10,3 TFLOPS laut Microsoft' },
 ]
+
+/** Quellen der Referenzwerte, getrennt von der Messreihe gepflegt. */
+const SOURCES: Record<string, ReferenceSource> = {
+  z1: { label: 'Wikipedia: Zuse Z1', url: 'https://de.wikipedia.org/wiki/Zuse_Z1' },
+  z3: { label: 'Wikipedia: Zuse Z3', url: 'https://de.wikipedia.org/wiki/Zuse_Z3' },
+  eniac: { label: 'Wikipedia: ENIAC', url: 'https://en.wikipedia.org/wiki/ENIAC' },
+  baby: { label: 'Wikipedia: Manchester Baby', url: 'https://en.wikipedia.org/wiki/Manchester_Baby' },
+  ibm704: { label: 'Wikipedia: IBM 704', url: 'https://en.wikipedia.org/wiki/IBM_704' },
+  agc: { label: 'Wikipedia: Apollo Guidance Computer', url: 'https://en.wikipedia.org/wiki/Apollo_Guidance_Computer' },
+  cray1: { label: 'Wikipedia: Cray-1', url: 'https://en.wikipedia.org/wiki/Cray-1' },
+  apple2: { label: 'Wikipedia: Apple II', url: 'https://en.wikipedia.org/wiki/Apple_II' },
+  atari2600: { label: 'Wikipedia: Atari 2600', url: 'https://en.wikipedia.org/wiki/Atari_2600' },
+  ibmpc: { label: 'Wikipedia: IBM Personal Computer', url: 'https://en.wikipedia.org/wiki/IBM_Personal_Computer' },
+  zxspectrum: { label: 'Wikipedia: ZX Spectrum', url: 'https://en.wikipedia.org/wiki/ZX_Spectrum' },
+  c64: { label: 'Wikipedia: Commodore 64', url: 'https://en.wikipedia.org/wiki/Commodore_64' },
+  nes: { label: 'Wikipedia: Nintendo Entertainment System', url: 'https://en.wikipedia.org/wiki/Nintendo_Entertainment_System' },
+  mac128: { label: 'Wikipedia: Macintosh 128K', url: 'https://en.wikipedia.org/wiki/Macintosh_128K' },
+  i386: { label: 'Wikipedia: Intel 80386', url: 'https://en.wikipedia.org/wiki/Intel_80386' },
+  amiga500: { label: 'Wikipedia: Amiga 500', url: 'https://en.wikipedia.org/wiki/Amiga_500' },
+  gameboy: { label: 'Wikipedia: Game Boy', url: 'https://en.wikipedia.org/wiki/Game_Boy' },
+  i486: { label: 'Wikipedia: Intel 80486', url: 'https://en.wikipedia.org/wiki/Intel_80486' },
+  pentium66: { label: 'Wikipedia: Intel Pentium', url: 'https://en.wikipedia.org/wiki/Intel_Pentium' },
+  ps1: { label: 'Wikipedia: PlayStation (Konsole)', url: 'https://en.wikipedia.org/wiki/PlayStation_(console)' },
+  n64: { label: 'Wikipedia: Nintendo 64', url: 'https://en.wikipedia.org/wiki/Nintendo_64' },
+  pentium2: { label: 'Wikipedia: Intel Pentium II', url: 'https://en.wikipedia.org/wiki/Intel_Pentium_II' },
+  p3: { label: 'Wikipedia: Intel Pentium III', url: 'https://en.wikipedia.org/wiki/Intel_Pentium_III' },
+  ps2: { label: 'Wikipedia: PlayStation 2', url: 'https://en.wikipedia.org/wiki/PlayStation_2' },
+  xbox360: { label: 'Wikipedia: Xbox 360', url: 'https://en.wikipedia.org/wiki/Xbox_360' },
+  a7: { label: 'Wikipedia: Apple A7', url: 'https://en.wikipedia.org/wiki/Apple_A7' },
+  ps4: { label: 'Wikipedia: PlayStation 4', url: 'https://en.wikipedia.org/wiki/PlayStation_4' },
+  i7: { label: 'Wikipedia: Intel Core i7-4770', url: 'https://en.wikipedia.org/wiki/Intel_Core_i7-4770' },
+  switch: { label: 'Wikipedia: Nintendo Switch', url: 'https://en.wikipedia.org/wiki/Nintendo_Switch' },
+  m1: { label: 'Wikipedia: Apple M1', url: 'https://en.wikipedia.org/wiki/Apple_M1' },
+  ps5: { label: 'Wikipedia: PlayStation 5', url: 'https://en.wikipedia.org/wiki/PlayStation_5' },
+  rtx4090: { label: 'Wikipedia: GeForce RTX 4090', url: 'https://en.wikipedia.org/wiki/GeForce_RTX_40_Serie' },
+  r9: { label: 'Wikipedia: Ryzen 9 7950X', url: 'https://en.wikipedia.org/wiki/AMD_Ryzen_9' },
+  frontier: { label: 'Wikipedia: Frontier (TOP500)', url: 'https://en.wikipedia.org/wiki/Frontier_(supercomputer)' },
+  i4004: { label: 'Wikipedia: Intel 4004', url: 'https://en.wikipedia.org/wiki/Intel_4004' },
+  cdc6600: { label: 'Wikipedia: CDC 6600', url: 'https://en.wikipedia.org/wiki/CDC_6600' },
+  vectrex: { label: 'Wikipedia: Vectrex', url: 'https://en.wikipedia.org/wiki/Vectrex' },
+  genesis: { label: 'Wikipedia: Sega Mega Drive', url: 'https://en.wikipedia.org/wiki/Sega_Mega_Drive' },
+  snes: { label: 'Wikipedia: Super Nintendo Entertainment System', url: 'https://en.wikipedia.org/wiki/Super_Nintendo_Entertainment_System' },
+  jaguar: { label: 'Wikipedia: Atari Jaguar', url: 'https://en.wikipedia.org/wiki/Atari_Jaguar' },
+  dreamcast: { label: 'Wikipedia: Dreamcast', url: 'https://en.wikipedia.org/wiki/Dreamcast' },
+  gamecube: { label: 'Wikipedia: GameCube', url: 'https://en.wikipedia.org/wiki/GameCube' },
+  xbox: { label: 'Wikipedia: Xbox (Konsole)', url: 'https://en.wikipedia.org/wiki/Xbox_(console)' },
+  rpi4: { label: 'Wikipedia: Raspberry Pi 4', url: 'https://en.wikipedia.org/wiki/Raspberry_Pi_4' },
+  rpi5: { label: 'Wikipedia: Raspberry Pi 5', url: 'https://en.wikipedia.org/wiki/Raspberry_Pi_5' },
+  seriesx: { label: 'Wikipedia: Xbox Series X', url: 'https://en.wikipedia.org/wiki/Xbox_Series_X' },
+}
+
+for (const machine of REFERENCE_MACHINES) {
+  machine.source = SOURCES[machine.id] ?? null
+}
 
 /** Reihenfolge, in der die Zeit-Vergleichsbalken zeigen (interessanteste Stützpunkte). */
 export const TIMEBAR_IDS = ['eniac', 'agc', 'c64', 'gameboy', 'pentium66', 'p3', 'ps5', 'rtx4090']

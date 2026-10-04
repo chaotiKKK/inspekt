@@ -40,6 +40,10 @@ export interface InspektApi {
   export: (payload: ExportPayload) => Promise<ExportResult>
   benchRun: () => Promise<BenchResult>
   benchCancel: () => Promise<boolean>
+  benchHistory: () => Promise<BenchResult[]>
+  benchHistoryClear: () => Promise<boolean>
   onBenchProgress: (callback: (progress: BenchProgress) => void) => () => void
+  onBenchHistoryChanged: (callback: (history: BenchResult[]) => void) => () => void
+  openExternal: (url: string) => Promise<boolean>
   platform: string
 }

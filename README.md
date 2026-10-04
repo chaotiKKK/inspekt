@@ -53,13 +53,15 @@ Weitere Eigenschaften:
 
 Die Seite „Rechenkraft" misst den Rechner und stellt das Ergebnis in
 Diagrammen gegenüber. Die Messsuite läuft in einem eigenen Worker-Thread,
-sodass die Oberfläche bedienbar bleibt, und dauert rund 3,6 Sekunden:
+sodass die Oberfläche bedienbar bleibt, und dauert rund fünf Sekunden:
 
 1. **Gleitkomma** – Float64-Arithmetik auf einem Kern
 2. **Ganzzahl** – 64-Bit-Multiplikation und Verkettung
 3. **SHA-256** – 1 MiB Datensatz pro Durchlauf
-4. **Bandbreite** – Puffer kopieren und prüfen
-5. **Parallel** – Gleitkomma auf allen Kernen gleichzeitig
+4. **Bandbreite** – Lesen, Schreiben und Kopieren von 48 MiB, getrennt gemessen
+5. **Latenz** – Zufallssprung über 4 KiB, 256 KiB, 8 MiB und 64 MiB, zeigt
+   L1, L2, L3 und Arbeitsspeicher getrennt
+6. **Parallel** – Gleitkomma auf allen Kernen gleichzeitig
 
 Daraus wird der **Inspekt-Score** als geometrisches Mittel der Einzelwerte
 relativ zu festen Baselines, mal 100:
@@ -74,10 +76,22 @@ H₀ = 1.000 /s   M₀ = 10 GB/s
 Der geometrische Mittelwert bestraft Extreme: eine einzelne schnelle Kennzahl
 rettet den Score nicht, eine sehr langsame drückt ihn.
 
-Zum Vergleich dienen 34 Referenzrechner von der Zuse Z1 (1938) bis zum
-schnellsten Rechner des TOP500 (2022). Veröffentlichte Herstellerwerte sind
-als solche gekennzeichnet, grob aus Taktrate oder MIPS abgeleitete Werte
-tragen ein `≈` und werden im Diagramm gestrichelt gezeichnet.
+Jeder abgeschlossene Lauf landet in `bench-history.json` im Benutzerprofil
+(maximal 60 Einträge) und erscheint als Kurve auf derselben Seite. Damit
+lässt sich später sagen, ob ein Treiberupdate oder ein Temperaturschutz die
+Leistung verändert hat – die Daten bleiben lokal.
+
+Ist ein Akku verbaut und meldet Windows eine Lade- oder Entladeleistung,
+notiert die Suite zusätzlich **GFLOPS pro Watt**. Viele Notebooks liefern
+diese Rate nicht; dann steht dort „nicht messbar", statt eine Zahl zu
+erfinden.
+
+Zum Vergleich dienen 46 Referenzrechner von der Zuse Z1 (1938) bis zum
+schnellsten Rechner des TOP500 (2022) – vom Intel 4004 über Amiga, SNES und
+Dreamcast bis Raspberry Pi 5, PlayStation 5 und RTX 4090. Veröffentlichte
+Herstellerwerte sind als solche gekennzeichnet, grob aus Taktrate oder MIPS
+abgeleitete Werte tragen ein `≈` und werden im Diagramm gestrichelt gezeichnet.
+Jeder Wert lässt sich über den Quellen-Button in der Originalangabe prüfen.
 
 Hinweis zur Einordnung: Die Suite misst JavaScript in V8 auf diesem Rechner.
 Vergleiche mit C-Benchmarks anderer Werkzeuge sind deshalb nur grob gültig.

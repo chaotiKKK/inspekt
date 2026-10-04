@@ -1,12 +1,20 @@
 /** Fortschritt einer laufenden Benchmark-Messung. */
 export interface BenchProgress {
   /** technischer Schlüssel der aktuellen Messung */
-  task: 'float' | 'int' | 'hash' | 'mem' | 'parallel'
+  task: 'float' | 'int' | 'hash' | 'mem' | 'latency' | 'parallel'
   label: string
   /** 0–100 über die gesamte Suite */
   pct: number
   index: number
   total: number
+}
+
+/** Latenz einer Zufallssuche bei einem bestimmten Arbeitsset. */
+export interface BenchLatency {
+  /** Größe des Arbeitssets in Bytes */
+  bytes: number
+  /** mittlere Zugriffsdauer in Nanosekunden */
+  ns: number
 }
 
 /**
@@ -23,15 +31,43 @@ export interface BenchResult {
   intOps: number
   /** SHA-256-Vorgänge pro Sekunde (je 1 MiB Datensatz) */
   hashPerSec: number
-  /** Kopier-Bandbreite in Bytes pro Sekunde */
-  memBytesPerSec: number
   /** Gleitkomma-Durchsatz über alle Kerne gleichzeitig */
   parallelFlops: number
+  /** Kopier-Bandbreite in Bytes pro Sekunde */
+  memBytesPerSec: number
+  /** Schreibbandbreite (Puffer füllen), Bytes pro Sekunde */
+  memWriteBytesPerSec?: number | null
+  /** Lesbandbreite (Puffer traversieren), Bytes pro Sekunde */
+  memReadBytesPerSec?: number | null
+  /** Kopierbandbreite, Bytes pro Sekunde – identisch zu memBytesPerSec */
+  memCopyBytesPerSec?: number | null
+  /** Zufallslatenz bei wachsendem Arbeitsset: L1 → L2 → L3 → RAM */
+  latency?: BenchLatency[]
+  /**
+   * Mittlere Systemlast während der Messung in Watt.
+   * Nur belastbar, wenn ein Akku die Entladeleistung meldet (Notebooks);
+   * auf Desktop-PCs bleibt das null, statt etwas zu erfinden.
+   */
+  powerWatts?: number | null
+  /** woher die Leistungsangabe stammt: Akkuentladung oder Akkuladung */
+  powerSource?: 'entladung' | 'ladung' | null
+  /** Gleitkomma-Operationen pro Watt, nur wenn powerWatts bekannt */
+  gflopsPerWatt?: number | null
   /** Zusammengesetzter Inspekt-Score, siehe computeScore() */
   score: number
 }
 
-export const BENCH_TOTAL = 5
+export const BENCH_TOTAL = 6
+
+/** Arbeitssets für den Latenz-Sweep: L1, L2, L3, Hauptspeicher. */
+export const LATENCY_SIZES = [4 * 1024, 256 * 1024, 8 * 1024 ** 2, 64 * 1024 ** 2] as const
+
+export function latencyTier(bytes: number): string {
+  if (bytes <= 4 * 1024) return 'L1-Bereich (4 KiB)'
+  if (bytes <= 256 * 1024) return 'L2-Bereich (256 KiB)'
+  if (bytes <= 8 * 1024 ** 2) return 'L3-Bereich (8 MiB)'
+  return 'Arbeitsspeicher (64 MiB)'
+}
 
 /**
  * Inspekt-Score: geometrisches Mittel der vier Einzelwerte relativ zu

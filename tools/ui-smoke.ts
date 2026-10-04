@@ -267,12 +267,19 @@ const bench = await call<{ result?: { value?: unknown } }>('Runtime.evaluate', {
     const text = document.body.innerText.toLowerCase();
     const score = text.match(/inspekt-score\\s+([0-9.,]+)/);
     const unit4090 = (text.match(/nvidia rtx 4090\\s+([0-9.,]+\\s*[kmgt]?flops)/) || [])[1] ?? null;
+    let history = 0;
+    try { history = (await window.inspekt.benchHistory()).length; } catch (e) { history = -1; }
+    const latencyNs = (text.match(/(\\d+[,.]\\d)\\s*ns/) || [])[1] ?? null;
     return JSON.stringify({
       ok: !!document.querySelector('[data-bench="result"]'),
       running,
       score: score ? score[1] : null,
       unit4090,
       zeroMs: /\\b0 ms\\b/.test(text),
+      history,
+      latencyNs,
+      latencyPanel: text.includes('latenz') && text.includes('cache'),
+      sources: document.querySelectorAll('[data-bench="page"] button').length,
       svgs: document.querySelectorAll('[data-bench="page"] svg').length,
       bars: document.querySelectorAll('[data-bench="page"] .h-4').length,
       ms: Date.now() - started,
@@ -371,6 +378,10 @@ interface BenchReport {
   score?: string | null
   unit4090?: string | null
   zeroMs?: boolean
+  history?: number
+  latencyNs?: string | null
+  latencyPanel?: boolean
+  sources?: number
   svgs?: number
   bars?: number
   ms?: number
@@ -400,6 +411,9 @@ const checks: [string, boolean, string | null][] = [
   ['Vergleichsdiagramme', (benchReport.svgs ?? 0) >= 1, `${String(benchReport.svgs)} SVG`],
   ['Einheiten im Balkendiagramm', /tflops/.test(benchReport.unit4090 ?? ''), `RTX 4090 = ${String(benchReport.unit4090)}`],
   ['Sub-Millisekunden lesbar', benchReport.zeroMs === false, benchReport.zeroMs ? 'zeigt noch "0 ms"' : 'ms/µs-Format aktiv'],
+  ['Latenz-Sweep sichtbar', benchReport.latencyPanel === true && benchReport.latencyNs !== null, `RAM-Latenz ${String(benchReport.latencyNs)} ns`],
+  ['Verlauf gespeichert', (benchReport.history ?? 0) >= 1, `${String(benchReport.history)} Läufe in der Historie`],
+  ['Quellen verlinkbar', (benchReport.sources ?? 0) >= 40, `${String(benchReport.sources)} Quellen-Buttons`],
   ['Balken gerendert', (benchReport.bars ?? 0) >= 8, `${String(benchReport.bars)} Balken`],
   ['Referenzen enthalten', benchReport.historical === true && benchReport.compare === true && benchReport.time === true, null],
   ['Score-Formel erklärt', benchReport.note === true, null],

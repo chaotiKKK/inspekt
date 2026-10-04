@@ -25,7 +25,11 @@ const api: InspektApi = {
   export: (payload: ExportPayload) => ipcRenderer.invoke('hw:export', payload),
   benchRun: () => ipcRenderer.invoke('bench:run'),
   benchCancel: () => ipcRenderer.invoke('bench:cancel'),
+  benchHistory: () => ipcRenderer.invoke('bench:history'),
+  benchHistoryClear: () => ipcRenderer.invoke('bench:historyClear'),
   onBenchProgress: (callback) => subscribe('bench:progress', callback),
+  onBenchHistoryChanged: (callback) => subscribe('bench:historyChanged', callback),
+  openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
   platform: process.platform,
 }
 

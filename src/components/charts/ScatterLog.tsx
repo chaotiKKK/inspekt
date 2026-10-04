@@ -7,6 +7,8 @@ export interface ScatterPoint {
   gflops: number
   highlight?: boolean
   estimated?: boolean
+  note?: string | null
+  source?: string | null
 }
 
 const fmt = new Intl.NumberFormat('de-DE', { maximumSignificantDigits: 3 })
@@ -80,7 +82,7 @@ export function ScatterLog({ points, labelIds = [] }: { points: ScatterPoint[]; 
                   strokeWidth={1.4}
                   strokeDasharray={p.estimated ? '2 2' : undefined}
                 >
-                  <title>{`${p.name} · ${p.year} · ${fmt.format(p.gflops)} GFLOPS${p.estimated ? ' (Schätzung)' : ''}`}</title>
+                  <title>{`${p.name} · ${p.year} · ${fmt.format(p.gflops)} GFLOPS${p.estimated ? ' (Schätzung)' : ''}${p.note ? `\n${p.note}` : ''}${p.source ? `\nQuelle: ${p.source}` : ''}`}</title>
                 </circle>
                 {(labelSet.has(p.id) || own) && (
                   <text

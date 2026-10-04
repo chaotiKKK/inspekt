@@ -7,6 +7,7 @@ import collectScriptRaw from './collector/collect.ps1?raw'
 import telemetryScriptRaw from './collector/telemetry.ps1?raw'
 import { collect, collectSectionSnapshot, isElevated, startTelemetry, type TelemetryStream } from '../node/collect.ts'
 import { startBench, type BenchHandle } from '../node/bench.ts'
+import type { BenchResult } from '../shared/bench.ts'
 
 // ---------------------------------------------------------------------------
 // paths
@@ -146,6 +147,45 @@ function relaunchElevated(): { requested: boolean; error?: string } {
 let telemetry: TelemetryStream | null = null
 let bench: BenchHandle | null = null
 
+// ---------------------------------------------------------------------------
+// Benchmark-Historie (liegt neben den Collector-Skripten im Benutzerprofil)
+// ---------------------------------------------------------------------------
+
+const HISTORY_LIMIT = 60
+
+function historyPath(): string {
+  return path.join(app.getPath('userData'), 'bench-history.json')
+}
+
+async function readHistory(): Promise<BenchResult[]> {
+  try {
+    const raw = await fs.readFile(historyPath(), 'utf8')
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((e): e is BenchResult => Boolean(e) && typeof (e as BenchResult).score === 'number')
+  } catch {
+    return []
+  }
+}
+
+async function writeHistory(entries: BenchResult[]): Promise<void> {
+  try {
+    await fs.mkdir(path.dirname(historyPath()), { recursive: true })
+    await fs.writeFile(historyPath(), `${JSON.stringify(entries, null, 2)}\n`, 'utf8')
+  } catch {
+    /* Historie ist optional - ein Schreibfehler darf den Benchmark nicht kippen */
+  }
+}
+
+/** Hängt einen Lauf an und beschneidet auf die letzten HISTORY_LIMIT Einträge. */
+async function appendHistory(result: BenchResult): Promise<void> {
+  const entries = await readHistory()
+  entries.push(result)
+  const trimmed = entries.slice(-HISTORY_LIMIT)
+  await writeHistory(trimmed)
+  if (!win?.isDestroyed()) win?.webContents.send('bench:historyChanged', trimmed)
+}
+
 function send(channel: string, payload: unknown): void {
   if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
     win.webContents.send(channel, payload)
@@ -196,6 +236,14 @@ function registerIpc(): void {
     return true
   })
 
+  // Externe Links laufen immer ueber den Hauptprozess, damit im Renderer
+  // kein Fenster entsteht. Nur http(s) ist erlaubt.
+  ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return false
+    await shell.openExternal(url)
+    return true
+  })
+
   ipcMain.handle('sys:isElevated', () => isElevated())
 
   ipcMain.handle('bench:run', async (event) => {
@@ -205,10 +253,19 @@ function registerIpc(): void {
     })
     bench = handle
     try {
-      return await handle.promise
+      const result = await handle.promise
+      await appendHistory(result)
+      return result
     } finally {
       bench = null
     }
+  })
+
+  ipcMain.handle('bench:history', () => readHistory())
+
+  ipcMain.handle('bench:historyClear', async () => {
+    await writeHistory([])
+    return true
   })
 
   ipcMain.handle('bench:cancel', () => {

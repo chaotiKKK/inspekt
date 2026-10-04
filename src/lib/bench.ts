@@ -6,9 +6,11 @@ export interface BenchState {
   progress: BenchProgress | null
   result: BenchResult | null
   error: string | null
+  /** alle bisherigen Läufe, aufsteigend nach Zeitpunkt */
+  history: BenchResult[]
 }
 
-const initial: BenchState = { running: false, progress: null, result: null, error: null }
+const initial: BenchState = { running: false, progress: null, result: null, error: null, history: [] }
 let state: BenchState = initial
 let cancelRequested = false
 const listeners = new Set<() => void>()
@@ -25,6 +27,17 @@ function subscribe(listener: () => void): () => void {
 
 export function useBench(): BenchState {
   return useSyncExternalStore(subscribe, () => state, () => initial)
+}
+
+/** Lädt die gespeicherte Historie einmalig und hängt sich an Änderungen. */
+export function initBenchHistory(): () => void {
+  const api = window.inspekt
+  if (!api) return () => undefined
+  void api
+    .benchHistory()
+    .then((history) => set({ history }))
+    .catch(() => undefined)
+  return api.onBenchHistoryChanged((history) => set({ history }))
 }
 
 /** Startet die Messsuite; der Fortschritt läuft als Event vom Hauptprozess herein. */
@@ -61,6 +74,7 @@ export async function cancelBench(): Promise<void> {
   await window.inspekt?.benchCancel()
 }
 
-export function clearBenchError(): void {
-  if (state.error !== null) set({ error: null })
+export async function clearBenchHistory(): Promise<void> {
+  await window.inspekt?.benchHistoryClear()
+  set({ history: [] })
 }
