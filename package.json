@@ -13,6 +13,7 @@
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "collect": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect.ts",
+    "collect:redact": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect.ts --redact",
     "collect:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect-smoke.ts",
     "export:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/export-smoke.ts",
     "bench:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/bench-smoke.ts",

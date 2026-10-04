@@ -1,0 +1,44 @@
+name: Erweiterungsvorschlag
+description: Neuer Bereich, neue Messung oder bessere Darstellung
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: was
+    attributes:
+      label: Was soll dazukommen?
+      description: In einem Satz – idealerweise so konkret wie möglich.
+    validations:
+      required: true
+  - type: textarea
+    id: nutzen
+    attributes:
+      label: Wofür ist das nützlich?
+      description: Welche Frage beantwortet die Erweiterung, die heute schwer oder gar nicht zu beantworten ist?
+    validations:
+      required: true
+  - type: dropdown
+    id: seite
+    attributes:
+      label: Wo gehört es hin?
+      options:
+        - Neuer Bereich
+        - Rechenkraft
+        - Sensoren
+        - Speicher
+        - Arbeitsspeicher
+        - Grafik
+        - Netzwerk
+        - System & Export
+        - Nur Bedienung (Suche, Tasten, Kopieren)
+    validations:
+      required: true
+  - type: textarea
+    id: datenquelle
+    attributes:
+      label: Datenquelle
+      description: Falls bekannt: CIM-Klasse, PowerShell-Cmdlet, Registry-Schlüssel oder nvidia-smi-Feld.
+  - type: textarea
+    id: alternativen
+    attributes:
+      label: Alternativen oder Bedenken
+      description: Was könnte dagegen sprechen? Lizenz, Aufwand, Datenschutz?

@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { collectRaw, SECTION_GROUPS } from '../node/collect.ts'
+import { findIdentifiers, redactSnapshot } from '../node/redact.ts'
 
 const root = path.resolve(import.meta.dirname, '..')
 const scriptPath = path.join(root, 'electron', 'collector', 'collect.ps1')
@@ -103,6 +104,16 @@ warn('edid readable for at least one display', (mon?.monitors ?? []).length >= 1
 const sec = snapshot.sections.security.data
 console.log('\nsecurity')
 warn('secure boot state readable', sec?.secureBoot !== undefined && sec?.secureBoot !== null, `secureBoot=${sec?.secureBoot} bootMode=${sec?.bootMode}`)
+
+console.log('\nanonymisierung')
+const red = redactSnapshot(snapshot)
+ok('felder wurden ersetzt', red.count > 0, `${red.count} Werte, ${red.fields.length} Felder`)
+ok('keine identifier mehr enthalten', findIdentifiers(red.snapshot).length === 0, findIdentifiers(red.snapshot).slice(0, 3).join('; '))
+ok('abschnittsstruktur bleibt erhalten', Object.keys(red.snapshot.sections).length === Object.keys(snapshot.sections).length)
+ok('modellnamen bleiben lesbar', Boolean(red.snapshot.sections.system.data?.manufacturer), `${red.snapshot.sections.system.data?.manufacturer} ${red.snapshot.sections.system.data?.model}`)
+ok('zählwerte bleiben korrekt', (red.snapshot.sections.memory.data?.slotsTotal ?? 0) === (snapshot.sections.memory.data?.slotsTotal ?? -1))
+ok('zeitstempel genullt', red.snapshot.collectedAt === new Date(0).toISOString(), red.snapshot.collectedAt)
+ok('anonymisierung ist stabil', JSON.stringify(redactSnapshot(red.snapshot).snapshot) === JSON.stringify(red.snapshot))
 
 console.log(`\n${failures === 0 ? 'RESULT: PASS' : `RESULT: FAIL (${failures} failure(s))`}${warnings ? `, ${warnings} warning(s)` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

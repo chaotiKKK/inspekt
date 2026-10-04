@@ -13,3 +13,6 @@ build/smoke-*.png
 # Erzeugt mit "npm run collect" – enthält Hostname und Seriennummern
 fixtures/*.json
 fixtures/*.err
+
+# anonymisierte Snapshots sind bewusst teilbar
+!fixtures/*.redacted.json

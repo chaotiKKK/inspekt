@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Frage oder Diskussion
+    url: https://github.com/chaotiKKK/inspekt/discussions
+    about: Für Fragen zur Bedienung, Bedarfsanmeldungen und Ideen – für Fehler bitte das Fehlerformular nutzen.

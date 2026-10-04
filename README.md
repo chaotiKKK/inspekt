@@ -110,6 +110,7 @@ npm run dev                # Vite-Devserver, Electron startet mit
 | `npm run build` | Renderer, Main und Preload bauen |
 | `npm run typecheck` | beide TypeScript-Projekte prüfen |
 | `npm run collect` | `fixtures/snapshot.json` erzeugen |
+| `npm run collect:redact` | anonymisierten `fixtures/snapshot.redacted.json` erzeugen |
 | `npm run collect:smoke` | Collector gegen die echte Hardware prüfen |
 | `npm run export:smoke` | JSON-, CSV- und HTML-Export prüfen |
 | `npm run bench:smoke` | Messsuite und Referenzdaten prüfen |
@@ -125,6 +126,15 @@ Development-Version die gepackte EXE:
 ```bash
 node tools/ui-smoke.ts release/Inspekt-1.0.0-portable.exe
 ```
+
+### Anonymisierte Snapshots
+
+Ein roher Snapshot enthält Hostname, Seriennummern, MAC- und IP-Adressen und
+darf nicht ins Repository. `npm run collect:redact` erzeugt eine bereinigte
+Kopie: Seriennummern, UUIDs, Host- und Gerätenamen, MAC- und IP-Adressen
+werden ersetzt, Baureihen, Modellnamen, Slot- und Kapazitätswerte bleiben
+lesbar. Der Collector-Smoke-Test prüft, dass nach der Anonymisierung keine
+Identifier mehr auftauchen.
 
 ## Wie die Daten ausgelesen werden
 
@@ -169,6 +179,22 @@ fixtures/          erzeugter Snapshot (nicht im Repo, siehe .gitignore)
 release/           portable EXE (nicht im Repo)
 ```
 
+## Continuous Integration
+
+Drei Jobs unter `.github/workflows/ci.yml`, alle auf `windows-latest`:
+
+1. **Prüfungen** – Typecheck, Export-, Benchmark- und Collector-Smokes,
+   danach wird ein anonymisierter Snapshot als Artefakt hochgeladen
+2. **Oberfläche** – baut die App und fährt den UI-Smoke-Test über CDP
+   (`continue-on-error`, weil Electron eine interaktive Sitzung braucht)
+3. **Paketierung** – baut die portable EXE und lädt sie hoch
+
+## Beitragen
+
+Issue- und PR-Vorlagen liegen unter `.github/`. Für Fehlerberichte ist der
+Diagnoseblock auf der Seite „System & Export" gedacht – er enthält
+App-Version, Rechtezustand, Skriptpfade und die letzten Protokollzeilen.
+
 ## Datenschutz
 
 - Keine Netzwerkverbindungen, keine Telemetrie an Server, keine Updates
@@ -180,5 +206,4 @@ release/           portable EXE (nicht im Repo)
 
 ## Lizenz
 
-Noch nicht festgelegt. Wenn das Projekt öffentlich weitergeht, sollte eine
-Lizenz ergänzt werden.
+MIT – siehe [LICENSE](LICENSE).

@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruefungen:
+    name: Typecheck und Smoke-Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Export-Format prüfen
+        run: npm run export:smoke
+
+      - name: Messsuite prüfen
+        run: npm run bench:smoke
+
+      - name: Collector gegen echte Hardware prüfen
+        run: npm run collect:smoke
+
+      - name: Anonymisierten Snapshot erzeugen
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect.ts --redact fixtures/snapshot.redacted.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-anonymisiert
+          path: fixtures/snapshot.redacted.json
+          if-no-files-found: error
+
+  oberflaeche:
+    name: Oberfläche (CDP)
+    # Electron braucht eine interaktive Sitzung. Auf Windows-Runnern klappt das
+    # meistens, aber nicht garantiert - deshalb continue-on-error.
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: UI-Smoke-Test
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/ui-smoke.ts
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: build/smoke-*.png
+          if-no-files-found: ignore
+
+  paketierung:
+    name: Portable EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inspekt-portable
+          path: release/*.exe
+          if-no-files-found: error
