@@ -22,9 +22,13 @@
     "i18n:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/i18n-smoke.ts",
     "ui:smoke": "npm run build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/ui-smoke.ts",
     "icon": "node tools/make-icon.mjs",
-    "build:win": "npm run build && electron-builder --win portable"
+    "build:win": "npm run build && electron-builder --win portable nsis",
+    "build:win:portable": "npm run build && electron-builder --win portable",
+    "build:win:installer": "npm run build && electron-builder --win nsis",
+    "release:dry": "npm run build && electron-builder --win portable nsis --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -42,27 +46,5 @@
     "typescript": "^5.9.3",
     "vite": "^8.3.1",
     "vite-plugin-electron": "^1.1.2"
-  },
-  "build": {
-    "appId": "de.inspekt.app",
-    "productName": "Inspekt",
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
-    "extraResources": [
-      { "from": "electron/collector/collect.ps1", "to": "collect.ps1" },
-      { "from": "electron/collector/telemetry.ps1", "to": "telemetry.ps1" }
-    ],
-    "win": {
-      "icon": "build/icon.ico",
-      "requestedExecutionLevel": "asInvoker",
-      "target": [{ "target": "portable", "arch": ["x64"] }]
-    },
-    "portable": {
-      "artifactName": "Inspekt-${version}-portable.exe"
-    }
   }
 }

@@ -38,6 +38,9 @@ const api: InspektApi = {
   netScanCancel: () => ipcRenderer.invoke('net:scanCancel'),
   onNetScanProgress: (callback) => subscribe('net:scanProgress', callback),
   logList: (limit?: number) => ipcRenderer.invoke('log:list', limit),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  onUpdateState: (callback) => subscribe('update:state', callback),
   diagBlock: (snapshot: unknown) => ipcRenderer.invoke('diag:block', snapshot),
   platform: process.platform,
 }

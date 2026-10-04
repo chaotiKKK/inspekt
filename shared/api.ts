@@ -46,6 +46,15 @@ export interface LogEntry {
   text: string
 }
 
+/** Zustand der optionalen Update-Prüfung gegen GitHub-Releases. */
+export interface UpdateInfo {
+  version: string | null
+  note: string | null
+  ready: boolean
+  fehler: string | null
+  verfuegbar: boolean
+}
+
 export interface InspektApi {
   collect: () => Promise<Snapshot>
   sections: (names: string[]) => Promise<Record<string, unknown>>
@@ -74,6 +83,9 @@ export interface InspektApi {
   netScanCancel: () => Promise<boolean>
   onNetScanProgress: (callback: (progress: NetScanProgress) => void) => () => void
   logList: (limit?: number) => Promise<LogEntry[]>
+  updateCheck: () => Promise<UpdateInfo>
+  updateInstall: () => Promise<boolean>
+  onUpdateState: (callback: (info: UpdateInfo) => void) => () => void
   /** kopierfertiger Diagnoseblock für Fehlerberichte */
   diagBlock: (snapshot: unknown) => Promise<string>
   platform: string

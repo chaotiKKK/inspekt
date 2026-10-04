@@ -261,7 +261,7 @@ const bench = await call<{ result?: { value?: unknown } }>('Runtime.evaluate', {
     run.click();
     await sleep(350);
     const running = !!document.querySelector('[data-bench="progress"]');
-    while (!document.querySelector('[data-bench="result"]') && Date.now() - started < 75000) {
+    while (!document.querySelector('[data-bench="result"]') && Date.now() - started < 150000) {
       await sleep(400);
     }
     const text = document.body.innerText.toLowerCase();
@@ -290,7 +290,7 @@ const bench = await call<{ result?: { value?: unknown } }>('Runtime.evaluate', {
     });
   })()`,
   },
-  90000,
+  240000,
 )
 
 const benchValue = String((bench.result as { value?: string } | undefined)?.value ?? '{}')

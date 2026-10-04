@@ -7,6 +7,7 @@ import collectScriptRaw from './collector/collect.ps1?raw'
 import telemetryScriptRaw from './collector/telemetry.ps1?raw'
 import { collect, collectSectionSnapshot, isElevated, startTelemetry, type TelemetryStream } from '../node/collect.ts'
 import { diffSnapshots } from '../shared/diff.ts'
+import { checkForUpdates, initAutoUpdater, quitAndInstall } from '../node/updater.ts'
 import { logError, logEntries, logInfo, logStats, logText, logWarn } from '../node/log.ts'
 import type { Snapshot } from '../shared/schema.ts'
 import { startBench, type BenchHandle } from '../node/bench.ts'
@@ -185,6 +186,9 @@ function createWindow(): void {
   } else {
     void win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
   }
+
+  // Update nur für gepackte Builds – im Entwicklungsmodus gibt es nichts zu holen
+  if (app.isPackaged) initAutoUpdater(win)
 }
 
 // ---------------------------------------------------------------------------
@@ -397,6 +401,10 @@ function registerIpc(): void {
     netScan = null
     return true
   })
+
+  ipcMain.handle('update:check', () => checkForUpdates(win))
+
+  ipcMain.handle('update:install', () => quitAndInstall(win))
 
   // Externe Links laufen immer ueber den Hauptprozess, damit im Renderer
   // kein Fenster entsteht. Nur http(s) ist erlaubt.

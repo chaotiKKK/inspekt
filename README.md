@@ -152,12 +152,26 @@ Voraussetzung ist nur Node.js 20 oder neuer (entwickelt mit Node 24).
 
 ```bash
 npm ci
-npm run build:win          # erzeugt release/Inspekt-1.0.0-portable.exe
+npm run build:win            # portable EXE und NSIS-Installer
 ```
 
-Die portable `.exe` enthält Electron und alle Skripte, braucht keine
-Installation und legt nur seine Collector-Skripte unter
-`%APPDATA%\Inspekt\collector` ab.
+| Datei | Zweck |
+| --- | --- |
+| `release/Inspekt-1.0.0-portable.exe` | keine Installation, Start per Doppelklick, Collector-Skripte im Benutzerprofil |
+| `release/Inspekt-1.0.0-Setup.exe` | Installer mit Auswahl des Zielordners, Startmenüeintrag und Uninstall |
+
+Die portable Datei enthält Electron und alle Skripte und legt nur
+`%APPDATA%\Inspekt\collector` an. Der Installer schreibt nach
+`%LOCALAPPDATA%\Programs\Inspekt`; beim Deinstallieren bleiben Erfassung,
+Benchmark-Historie und Referenz-Snapshots erhalten.
+
+Zusätzliche Build-Befehle:
+
+```bash
+npm run build:win:portable     # nur die portable Datei
+npm run build:win:installer    # nur den Installer
+npm run release:dry            # beide bauen, ohne zu veröffentlichen
+```
 
 Für die Entwicklung:
 
@@ -165,6 +179,16 @@ Für die Entwicklung:
 npm ci
 npm run dev                # Vite-Devserver, Electron startet mit
 ```
+
+### Updates
+
+Der Installer kann sich über „System & Export" → „Auf Updates prüfen"
+aktualisieren. Die Prüfung läuft **nur auf Zuruf**, nie beim Start, und fragt
+ausschließlich die Releases dieses GitHub-Repos ab – keine Telemetrie, keine
+Nutzungsdaten. Ein gefundenes Update wird geladen und beim nächsten Beenden
+eingespielt. Ohne veröffentlichtes Release oder ohne Netz bleibt die
+installierte Version stehen, ohne Fehlermeldung. Die portable Variante
+aktualisiert sich bewusst nicht (sie hat keinen Installer).
 
 ## Skripte
 

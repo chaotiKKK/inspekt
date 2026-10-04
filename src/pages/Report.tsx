@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ClipboardCopy, FileDown, FileJson, FileSpreadsheet, FileText, Moon, Printer, Sun } from 'lucide-react'
+import { ClipboardCopy, Download, FileDown, FileJson, FileSpreadsheet, FileText, Moon, Printer, Sun } from 'lucide-react'
 import { SnapshotCompare } from '../components/SnapshotCompare.tsx'
 import { Badge, KV, Notice, Panel, StatTile } from '../components/ui.tsx'
 import { bytes, dateTime, duration, num } from '../lib/format.ts'
@@ -7,7 +7,7 @@ import { fileStamp, buildCsv, buildHtml, buildJson, type ReportFormat } from '..
 import { kopieren } from '../lib/search.ts'
 import { LOCALES, useLocale } from '../lib/i18n'
 import { useAppInfo } from '../lib/hooks.ts'
-import type { LogEntry } from '../../shared/api.ts'
+import type { LogEntry, UpdateInfo } from '../../shared/api.ts'
 import type { PageProps } from './PageProps.ts'
 
 export function ReportPage({ snapshot, report, elevated, settings, patchSettings }: PageProps): React.ReactNode {
@@ -17,6 +17,29 @@ export function ReportPage({ snapshot, report, elevated, settings, patchSettings
   const [busy, setBusy] = useState<ReportFormat | null>(null)
   const [diag, setDiag] = useState<string | null>(null)
   const [logEintraege, setLogEintraege] = useState<LogEntry[]>([])
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
+  const [updateLaueft, setUpdateLaueft] = useState(false)
+
+  useEffect(() => {
+    const api = window.inspekt
+    if (!api?.onUpdateState) return undefined
+    return api.onUpdateState((info) => setUpdate(info))
+  }, [])
+
+  async function updatePruefen(): Promise<void> {
+    setUpdateLaueft(true)
+    try {
+      setUpdate(await window.inspekt.updateCheck())
+    } catch (err) {
+      setUpdate({ version: null, note: null, ready: false, fehler: (err as Error).message, verfuegbar: false })
+    } finally {
+      setUpdateLaueft(false)
+    }
+  }
+
+  async function updateInstallieren(): Promise<void> {
+    await window.inspekt.updateInstall()
+  }
 
   const sys = snapshot?.sections.system.data ?? null
 
@@ -263,6 +286,51 @@ export function ReportPage({ snapshot, report, elevated, settings, patchSettings
           </div>
         </Panel>
       </div>
+
+      <Panel code="UPD" title="Updates">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void updatePruefen()}
+            disabled={updateLaueft || !info?.packaged}
+            title={info?.packaged ? 'Gibt es eine neuere Version auf GitHub?' : 'Nur in der installierten Version'}
+          >
+            <Download size={14} aria-hidden="true" />
+            {updateLaueft ? 'Prüft …' : 'Auf Updates prüfen'}
+          </button>
+          {update && update.ready && (
+            <button type="button" className="btn btn-primary" onClick={() => void updateInstallieren()}>
+              Jetzt neu starten und installieren
+            </button>
+          )}
+          {update && update.verfuegbar && update.version && (
+            <Badge tone="accent">Version {update.version} verfügbar</Badge>
+          )}
+          {update && !update.verfuegbar && !update.fehler && <Badge tone="good">installierte Version ist aktuell</Badge>}
+          {!info?.packaged && <Badge>im Entwicklungsmodus ohne Update-Funktion</Badge>}
+        </div>
+
+        {update?.fehler && (
+          <div className="mt-3">
+            <Notice tone="neutral" title="Keine Prüfung möglich">
+              {update.fehler} – das ist im Normalbetrieb kein Fehler: Ohne veröffentlichtes Release oder ohne Netzverbindung
+              bleibt die installierte Version einfach stehen.
+            </Notice>
+          </div>
+        )}
+
+        {update?.note && (
+          <pre className="mt-3 max-h-40 overflow-auto rounded border border-line bg-panel2 px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-muted">
+            {update.note}
+          </pre>
+        )}
+
+        <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
+          Inspekt fragt nichts von selbst ab. Erst ein Klick hier, dann nur die GitHub-Releases – keine Telemetrie, keine
+          Nutzungsdaten, kein Kontakt. Ein gefundenes Update wird geladen und beim Beenden eingesetzt.
+        </p>
+      </Panel>
 
       <Panel code="DIAG" title="Diagnoseblock für Fehlerberichte">
         <div className="flex flex-wrap items-center gap-3 no-print">
