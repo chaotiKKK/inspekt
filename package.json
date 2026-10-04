@@ -1,0 +1,64 @@
+{
+  "name": "inspekt",
+  "productName": "Inspekt",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hardware-Inventar fuer Windows: RAM-Slots, freie Anschluesse, Diskgesundheit",
+  "author": "inspekt",
+  "license": "MIT",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "collect": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect.ts",
+    "collect:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/collect-smoke.ts",
+    "export:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/export-smoke.ts",
+    "bench:smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/bench-smoke.ts",
+    "ui:smoke": "npm run build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/ui-smoke.ts",
+    "icon": "node tools/make-icon.mjs",
+    "build:win": "npm run build && electron-builder --win portable"
+  },
+  "dependencies": {
+    "lucide-react": "^1.48.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vite-plugin-electron": "^1.1.2"
+  },
+  "build": {
+    "appId": "de.inspekt.app",
+    "productName": "Inspekt",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
+    "extraResources": [
+      { "from": "electron/collector/collect.ps1", "to": "collect.ps1" },
+      { "from": "electron/collector/telemetry.ps1", "to": "telemetry.ps1" }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "target": [{ "target": "portable", "arch": ["x64"] }]
+    },
+    "portable": {
+      "artifactName": "Inspekt-${version}-portable.exe"
+    }
+  }
+}

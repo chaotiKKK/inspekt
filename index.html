@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://localhost:*" />
+    <title>Inspekt – Hardware-Inventar</title>
+    <style>
+      html, body, #root { height: 100%; margin: 0; background: #07090e; }
+      #boot { position: fixed; inset: 0; display: grid; place-items: center; color: #6b7690;
+        font: 500 13px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; letter-spacing: .04em; }
+      #boot .ring { width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 14px;
+        border: 2px solid rgba(139,92,246,.18); border-top-color: #8b5cf6; animation: sp 1s linear infinite; }
+      @keyframes sp { to { transform: rotate(360deg); } }
+      html.light, html.light body, html.light #root { background: #f6f7fb; }
+      html.light #boot { color: #6b7280; }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div id="boot"><div><div class="ring"></div>Hardware wird gelesen…</div></div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

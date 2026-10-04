@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-electron/
+release/
+
+*.log
+*.log.err
+.DS_Store
+
+# Screenshots aus dem UI-Smoke-Test enthalten Seriennummer des Testgeräts
+build/smoke-*.png
+
+# Erzeugt mit "npm run collect" – enthält Hostname und Seriennummern
+fixtures/*.json
+fixtures/*.err

@@ -1,0 +1,8 @@
+# Im Repository bleibt alles LF, damit Diffs und Zeilenumbrüche stabil bleiben.
+* text=auto eol=lf
+
+# PowerShell 5.1 läuft unter Windows am unauffälligsten mit CRLF
+*.ps1 text eol=crlf
+
+*.ico binary
+*.png binary

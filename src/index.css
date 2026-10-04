@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-panel: var(--c-panel);
+  --color-panel2: var(--c-panel2);
+  --color-line: var(--c-line);
+  --color-line2: var(--c-line2);
+  --color-fg: var(--c-fg);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-accent: var(--c-accent);
+  --font-sans: var(--f-sans);
+  --font-mono: var(--f-mono);
+}
+
+:root {
+  --f-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+
+  --c-bg: #07090e;
+  --c-panel: #0d1118;
+  --c-panel2: #11161f;
+  --c-line: #1c222c;
+  --c-line2: #262e3a;
+  --c-fg: #e7ecf3;
+  --c-muted: #8a95a5;
+  --c-faint: #5c6675;
+  --c-accent: #8b5cf6;
+  --c-scan: rgba(139, 92, 246, 0.5);
+
+  color-scheme: dark;
+}
+
+html.light {
+  --c-bg: #f3f5f8;
+  --c-panel: #ffffff;
+  --c-panel2: #f7f9fc;
+  --c-line: #e2e7ee;
+  --c-line2: #d2d9e3;
+  --c-fg: #0e131a;
+  --c-muted: #5b6674;
+  --c-faint: #8a94a2;
+  --c-scan: rgba(124, 58, 237, 0.35);
+
+  color-scheme: light;
+}
+
+/* section accents — the silkscreen colour of the component group */
+[data-accent="overview"] { --c-accent: #8b5cf6; }
+[data-accent="memory"] { --c-accent: #8b5cf6; }
+[data-accent="storage"] { --c-accent: #10b981; }
+[data-accent="cpu"] { --c-accent: #f59e0b; }
+[data-accent="gpu"] { --c-accent: #f43f5e; }
+[data-accent="bench"] { --c-accent: #e879f9; }
+[data-accent="board"] { --c-accent: #22d3ee; }
+[data-accent="monitors"] { --c-accent: #a78bfa; }
+[data-accent="network"] { --c-accent: #38bdf8; }
+[data-accent="devices"] { --c-accent: #94a3b8; }
+[data-accent="battery"] { --c-accent: #84cc16; }
+[data-accent="sensors"] { --c-accent: #fb7185; }
+[data-accent="export"] { --c-accent: #64748b; }
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-fg);
+}
+
+body {
+  font-family: var(--f-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--c-accent) 40%, transparent);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--c-line2);
+  border: 3px solid var(--c-bg);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--c-accent) 60%, var(--c-line2));
+}
+
+@layer components {
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-faint);
+  }
+
+  .panel {
+    background: var(--c-panel);
+    border: 1px solid var(--c-line);
+    border-radius: 10px;
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--c-line);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--c-line2);
+    font-family: var(--f-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--c-muted);
+    white-space: nowrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--c-line2);
+    background: var(--c-panel2);
+    color: var(--c-fg);
+    font-family: var(--f-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+  }
+  .btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--c-accent) 55%, var(--c-line2));
+    color: var(--c-accent);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: color-mix(in srgb, var(--c-accent) 16%, var(--c-panel2));
+    border-color: color-mix(in srgb, var(--c-accent) 45%, var(--c-line2));
+    color: color-mix(in srgb, var(--c-accent) 85%, var(--c-fg));
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.scatter-own .pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
